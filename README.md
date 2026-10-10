@@ -49,3 +49,5 @@ Successful Claude Code Bash calls containing simple `git commit` or `git push` c
 The New Chat button sits to the right of the bell. Choose a project folder to open a fresh Claude Code session in Terminal; the existing tracking hooks pick it up automatically. Claude Code must already be installed and signed in.
 
 Hover over the pet to make it dance; moving away returns it to its normal pose. Completion and input notifications briefly animate it even when other sessions are still working. Hover and notification animation respect macOS Reduce Motion.
+
+After installation, macOS permission setup requests Automation for Terminal/System Events and Accessibility for opening a new Terminal tab. Approve these in macOS; permissions are never changed by the app. You can retry through “Set up Terminal permissions…” in the menu bar. New Chat now targets a new tab in an existing Terminal window, or creates a window if none exists. Without permission, it explains what is missing. It does not send a command unless a new tab is confirmed.

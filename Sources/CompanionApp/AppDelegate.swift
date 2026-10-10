@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     status.button?.title = "✦ Claude"
     let menu = NSMenu()
     add(menu, "New Claude Code chat…", #selector(newChat))
+    add(menu, "Set up Terminal permissions…", #selector(setUpTerminalPermissions))
     add(menu, "Sessions & settings…", #selector(showSessions))
     add(menu, "Show / hide companion", #selector(toggle))
     add(menu, "Sample notification", #selector(sample))
@@ -76,6 +77,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self?.refresh()
     }
     if !installed && !CommandLine.arguments.contains("--demo") { showSessions() }
+    let installedPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+      "Applications/Claude Companion.app")
+    if installed, Bundle.main.bundleURL.standardizedFileURL == installedPath.standardizedFileURL,
+      !UserDefaults.standard.bool(forKey: "terminalPermissionsRequested")
+    {
+      DispatchQueue.main.async { [weak self] in self?.setUpTerminalPermissions() }
+    }
+  }
+  @objc func setUpTerminalPermissions() {
+    UserDefaults.standard.set(true, forKey: "terminalPermissionsRequested")
+    diagnostic = TerminalTabs.requestPermissions()
+    showSessions()
   }
   @objc func newChat() {
     let candidates = [
@@ -86,8 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     guard
       let executable = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }
       ),
-      let terminal = NSWorkspace.shared.urlForApplication(
-        withBundleIdentifier: "com.apple.Terminal")
+      NSWorkspace.shared.urlForApplication(
+        withBundleIdentifier: "com.apple.Terminal") != nil
     else {
       diagnostic = "Install Claude Code and Terminal to start a new chat."
       showSessions()
@@ -112,15 +125,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       try NewChatLauncher.script(executable: executable, directory: folder.path).write(
         to: script, atomically: true, encoding: .utf8)
       try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
-      NSWorkspace.shared.open([script], withApplicationAt: terminal, configuration: .init()) {
-        [weak self] _, error in
-        if let error {
-          try? FileManager.default.removeItem(at: script)
-          DispatchQueue.main.async {
-            self?.diagnostic = "Could not start chat: \(error.localizedDescription)"
-            self?.showSessions()
-          }
-        }
+      do { try TerminalTabs.open(script: script) } catch {
+        try? FileManager.default.removeItem(at: script)
+        throw error
       }
     } catch {
       diagnostic = "Could not start chat: \(error.localizedDescription)"
@@ -407,6 +414,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       diagnostic =
         "Installed in Applications. New sessions connect automatically. Existing sessions may need /hooks or a restart to load new hooks; their status remains unknown until observed."
       panel.setVisible(true)
+      if Bundle.main.bundleURL.standardizedFileURL == destination.standardizedFileURL {
+        DispatchQueue.main.async { [weak self] in self?.setUpTerminalPermissions() }
+      } else {
+        // Obtain consent for the installed copy, not a temporary build location.
+        let launch = NSWorkspace.OpenConfiguration()
+        launch.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: destination, configuration: launch) { _, error in
+          if error == nil { DispatchQueue.main.async { NSApp.terminate(nil) } }
+        }
+      }
     } catch { diagnostic = error.localizedDescription }
     refresh()
   }

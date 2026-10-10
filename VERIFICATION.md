@@ -60,3 +60,7 @@ Added an accessible New Chat button to the right of the bell and a matching menu
 ## Hover and notification dance
 
 Added always-active pointer tracking over the pet, with celebration frames while hovered and a reset on pointer exit or hiding. Explicit notification animation now overrides a working pose for six seconds, so another busy session cannot suppress it. Added hover duration/exit, reduced-motion and concurrent-work regression coverage: all 33 tests passed. Release build and installed signature verification passed. Physical pointer playback was not visually verified in this follow-up.
+
+## Terminal tab permissions after installation
+
+Added installed-location permission onboarding, an explicit retry menu, Apple Events usage text, and Terminal new-tab automation with a bounded tab-creation check. Accessibility and Automation are requested via macOS, never granted programmatically. The existing 33 tests and release build passed; installed code signature verification passed. OS consent and actual Terminal tab creation require manual verification after the user grants permission. Ad-hoc development signatures may cause macOS to request consent again after updates.
