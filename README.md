@@ -32,6 +32,7 @@ Arta floats above your other apps and keeps an eye on your local Claude Code ses
 - **Today’s commits at a glance.** The compact hover bar shows a Git branch icon with a badge for today’s successful commits from tracked sessions. The count survives restarts and resets at local midnight; pushes do not increment it.
 - **One place for your sessions.** See which sessions are working or waiting for you.
 - **Notifications that make room.** Two cards appear by default. Choose your own limit; dismiss one to bring the next queued message into view.
+- **A subtle working signal.** A small green activity bar above the pet shows when Claude is working. It disappears on hover or while notification cards are visible; it indicates activity, not a completion percentage.
 - **Quiet by default.** The button bar appears on hover. Completion and input requests can open the notification tray; routine activity stays out of the way.
 - **No lost input requests.** Completion cards fade after ten visible seconds. Input requests remain until resolved or dismissed. Hidden cards do not time out.
 - **A new chat, one button away.** Choose a project folder and start Claude Code in a new Terminal tab.

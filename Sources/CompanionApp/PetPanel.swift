@@ -238,6 +238,42 @@ final class GitCounterButton: TrayButton {
     drawBadge(count, color: count == 0 ? NSColor(calibratedWhite: 0.35, alpha: 1) : .systemOrange)
   }
 }
+final class WorkingIndicator: NSView {
+  private let fill = CALayer()
+  override init(frame: NSRect) {
+    super.init(frame: frame)
+    wantsLayer = true
+    layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.16).cgColor
+    layer?.cornerRadius = frame.height / 2
+    layer?.masksToBounds = true
+    fill.frame = CGRect(x: 0, y: 0, width: 22, height: frame.height)
+    fill.cornerRadius = frame.height / 2
+    fill.backgroundColor = NSColor.systemGreen.cgColor
+    layer?.addSublayer(fill)
+    setAccessibilityElement(true)
+    setAccessibilityRole(.progressIndicator)
+    setAccessibilityLabel("Claude is working")
+    toolTip = "Claude is working"
+    isHidden = true
+  }
+  required init?(coder: NSCoder) { fatalError() }
+  func update(visible: Bool) {
+    isHidden = !visible
+    guard visible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+      fill.removeAllAnimations()
+      return
+    }
+    guard fill.animation(forKey: "activity") == nil else { return }
+    let drift = CABasicAnimation(keyPath: "transform.translation.x")
+    drift.fromValue = 0
+    drift.toValue = bounds.width - 22
+    drift.duration = 1.1
+    drift.autoreverses = true
+    drift.repeatCount = .infinity
+    drift.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+    fill.add(drift, forKey: "activity")
+  }
+}
 final class PetPanel: NSObject {
   let petPanel: FloatingPanel
   let pet = PetView(frame: NSRect(x: 31, y: 50, width: 130, height: 130))
@@ -249,7 +285,17 @@ final class PetPanel: NSObject {
   var onToggle: (() -> Void)?
   var onSessions: (() -> Void)?
   var onNewChat: (() -> Void)?
-  var trayExpanded = false
+  var trayExpanded = false { didSet { updateActivityIndicator() } }
+  var hasWorkingSession = false
+  var controlsHovered = false
+  var hasNotices = false
+  let activityIndicator = WorkingIndicator(frame: NSRect(x: 72, y: 182, width: 48, height: 5))
+  func updateActivityIndicator() {
+    activityIndicator.update(
+      visible: ActivityIndicatorPolicy.isVisible(
+        working: hasWorkingSession && petPanel.isVisible, hovering: controlsHovered,
+        notificationsVisible: trayExpanded && hasNotices))
+  }
   let toolbar = TraySurface(frame: NSRect(x: 0, y: 0, width: 192, height: 44))
   let bell = BellButton(frame: NSRect(x: 52, y: 0, width: 44, height: 44))
   let gitCount = GitCounterButton(frame: NSRect(x: 140, y: 0, width: 44, height: 44))
@@ -263,9 +309,14 @@ final class PetPanel: NSObject {
     petPanel.title = "Arta pet"
     let content = CompanionHoverView(frame: NSRect(x: 0, y: 0, width: 192, height: 188))
     content.addSubview(pet)
+    content.addSubview(activityIndicator)
     petPanel.contentView = content
     toolbar.isHidden = true
-    content.onHover = { [weak self] hovering in self?.toolbar.isHidden = !hovering }
+    content.onHover = { [weak self] hovering in
+      self?.toolbar.isHidden = !hovering
+      self?.controlsHovered = hovering
+      self?.updateActivityIndicator()
+    }
     toolbar.wantsLayer = true
     toolbar.layer?.cornerRadius = 22
     toolbar.layer?.masksToBounds = true
@@ -370,7 +421,11 @@ final class PetPanel: NSObject {
     NSApp.activate(ignoringOtherApps: true)
     alert.runModal()
   }
-  func render(_ notices: [Notice], state: Int, unread: Int, commits: Int = 0) {
+  func render(_ notices: [Notice], state: Int, unread: Int, commits: Int = 0, working: Bool = false)
+  {
+    hasWorkingSession = working
+    hasNotices = !notices.isEmpty
+    updateActivityIndicator()
     commitsToday = commits
     gitCount.count = commits
     gitCount.toolTip = "\(commits) commits today · resets at local midnight"
@@ -499,6 +554,7 @@ final class PetPanel: NSObject {
     for panel in cards { panel.orderFrontRegardless() }
   }
   func animate() {
+    updateActivityIndicator()
     let next = PetMotion.frame(
       state: pet.row,
       elapsed: Date().timeIntervalSince(
@@ -521,6 +577,8 @@ final class PetPanel: NSObject {
       for panel in particlePanels { panel.close() }
       particlePanels.removeAll()
       toolbar.isHidden = true
+      controlsHovered = false
+      activityIndicator.update(visible: false)
       pet.hovering = false
       pet.frameIndex = 0
       petPanel.orderOut(nil)

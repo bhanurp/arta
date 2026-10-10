@@ -210,7 +210,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.pet.badge = "\(working) working · \(store.queue.pending.count) queued"
     panel.render(
       store.queue.visible, state: state, unread: store.queue.allMessages.filter { !$0.read }.count,
-      commits: store.dailyCommits?.count() ?? 0)
+      commits: store.dailyCommits?.count() ?? 0, working: working > 0)
     status.button?.title = "✦ \(working) working · \(waiting) need you"
     panel.pet.toolTip =
       "\(working) working · \(waiting) need input · \(store.queue.pending.count) pending messages. Click for sessions."
