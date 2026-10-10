@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ? 2 : UserDefaults.standard.integer(forKey: "visibleLimit"))
     installed = HookInstaller.installed(settingsURL: settings, executableURL: helper)
     panel = PetPanel()
+    panel.onNewChat = { [weak self] in self?.newChat() }
     panel.onSessions = { [weak self] in self?.showSessions() }
     panel.onToggle = { [weak self] in
       guard let self else { return }
@@ -47,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     status.button?.title = "✦ Claude"
     let menu = NSMenu()
+    add(menu, "New Claude Code chat…", #selector(newChat))
     add(menu, "Sessions & settings…", #selector(showSessions))
     add(menu, "Show / hide companion", #selector(toggle))
     add(menu, "Sample notification", #selector(sample))
@@ -74,6 +76,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self?.refresh()
     }
     if !installed && !CommandLine.arguments.contains("--demo") { showSessions() }
+  }
+  @objc func newChat() {
+    let candidates = [
+      FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin/claude")
+        .path,
+      "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
+    ]
+    guard
+      let executable = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }
+      ),
+      let terminal = NSWorkspace.shared.urlForApplication(
+        withBundleIdentifier: "com.apple.Terminal")
+    else {
+      diagnostic = "Install Claude Code and Terminal to start a new chat."
+      showSessions()
+      return
+    }
+    let picker = NSOpenPanel()
+    picker.title = "New Claude Code chat"
+    picker.message = "Choose the folder Claude should work in."
+    picker.prompt = "Start chat"
+    picker.canChooseFiles = false
+    picker.canChooseDirectories = true
+    picker.allowsMultipleSelection = false
+    if let latest = store.sessions.values.sorted(by: { $0.updated > $1.updated }).first {
+      picker.directoryURL = URL(fileURLWithPath: latest.project)
+    }
+    NSApp.activate(ignoringOtherApps: true)
+    guard picker.runModal() == .OK, let folder = picker.url else { return }
+    do {
+      let directory = root.appendingPathComponent("launchers")
+      try AppPaths.privateDirectory(directory)
+      let script = directory.appendingPathComponent("New Claude Chat-\(UUID().uuidString).command")
+      try NewChatLauncher.script(executable: executable, directory: folder.path).write(
+        to: script, atomically: true, encoding: .utf8)
+      try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
+      NSWorkspace.shared.open([script], withApplicationAt: terminal, configuration: .init()) {
+        [weak self] _, error in
+        if let error {
+          try? FileManager.default.removeItem(at: script)
+          DispatchQueue.main.async {
+            self?.diagnostic = "Could not start chat: \(error.localizedDescription)"
+            self?.showSessions()
+          }
+        }
+      }
+    } catch {
+      diagnostic = "Could not start chat: \(error.localizedDescription)"
+      showSessions()
+    }
   }
   func add(_ menu: NSMenu, _ title: String, _ action: Selector) {
     let item = NSMenuItem(title: title, action: action, keyEquivalent: "")

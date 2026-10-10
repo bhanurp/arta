@@ -45,3 +45,5 @@ See `VERIFICATION.md` for evidence and remaining limits.
 The pet stays still during normal activity and sits behind a laptop while working. Completion and input requests get a brief six-second animation; macOS Reduce Motion disables that animation.
 
 Successful Claude Code Bash calls containing simple `git commit` or `git push` commands release a small floating commit symbol or upload arrow. The effect fades within two seconds without opening the tray or animating the pet. Simple `cd`/`git add`/commit/push chains joined with `&&` and Git `-C`/`-c` options are supported; scripts, aliases, substitutions, and complex shell expressions are intentionally skipped. Dry runs, failed or interrupted calls, hidden companions, and Reduce Motion do not emit particles.
+
+The New Chat button sits to the right of the bell. Choose a project folder to open a fresh Claude Code session in Terminal; the existing tracking hooks pick it up automatically. Claude Code must already be installed and signed in.

@@ -126,8 +126,9 @@ final class PetPanel: NSObject {
   var onDismiss: ((UUID) -> Void)?
   var onToggle: (() -> Void)?
   var onSessions: (() -> Void)?
+  var onNewChat: (() -> Void)?
   var trayExpanded = false
-  let bell = BellButton(frame: NSRect(x: 98, y: 1, width: 48, height: 36))
+  let bell = BellButton(frame: NSRect(x: 56, y: 1, width: 48, height: 36))
   override init() {
     petPanel = FloatingPanel(
       contentRect: NSRect(x: 0, y: 0, width: 160, height: 180),
@@ -148,7 +149,7 @@ final class PetPanel: NSObject {
     toolbar.layer?.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
     toolbar.appearance = NSAppearance(named: .darkAqua)
     content.addSubview(toolbar)
-    let sessions = NSButton(frame: NSRect(x: 14, y: 3, width: 60, height: 32))
+    let sessions = NSButton(frame: NSRect(x: 4, y: 3, width: 48, height: 32))
     sessions.image = NSImage(systemSymbolName: "square.stack", accessibilityDescription: "Sessions")
     sessions.title = ""
     sessions.isBordered = false
@@ -157,7 +158,7 @@ final class PetPanel: NSObject {
     sessions.action = #selector(showSessions)
     sessions.toolTip = "Sessions & settings"
     toolbar.addSubview(sessions)
-    let divider = NSBox(frame: NSRect(x: 80, y: 8, width: 1, height: 22))
+    let divider = NSBox(frame: NSRect(x: 53, y: 8, width: 1, height: 22))
     divider.boxType = .separator
     toolbar.addSubview(divider)
     bell.title = ""
@@ -171,6 +172,21 @@ final class PetPanel: NSObject {
     bell.action = #selector(toggleTray)
     bell.setAccessibilityLabel("Show notifications")
     toolbar.addSubview(bell)
+    let rightDivider = NSBox(frame: NSRect(x: 106, y: 8, width: 1, height: 22))
+    rightDivider.boxType = .separator
+    toolbar.addSubview(rightDivider)
+    let newChat = NSButton(frame: NSRect(x: 109, y: 3, width: 47, height: 32))
+    newChat.image = NSImage(
+      systemSymbolName: "square.and.pencil", accessibilityDescription: "New chat")?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 21, weight: .regular))
+    newChat.title = ""
+    newChat.isBordered = false
+    newChat.contentTintColor = .white
+    newChat.target = self
+    newChat.action = #selector(startNewChat)
+    newChat.toolTip = "New Claude Code chat…"
+    newChat.setAccessibilityLabel("New chat")
+    toolbar.addSubview(newChat)
     let defaults = UserDefaults.standard
     let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
     let point =
@@ -244,6 +260,7 @@ final class PetPanel: NSObject {
     positionCards()
     if petPanel.isVisible && trayExpanded { cards.forEach { $0.orderFrontRegardless() } }
   }
+  @objc func startNewChat() { onNewChat?() }
   @objc func showSessions() { onSessions?() }
   @objc func toggleTray() {
     trayExpanded.toggle()

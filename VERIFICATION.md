@@ -52,3 +52,7 @@ Idle and working poses are static; working shows a laptop in front of the pet. I
 ## Git activity particles
 
 Added optional activity metadata to existing hook events and brief Core Animation particles. Parser and hook adapter regressions cover direct commands, quoted arguments, successful chains, ordinary text, scripts, dry runs, failed/interrupted events, and absence of attention notifications. All 30 tests passed; release build and installed signature verification passed. Updated both the installed app and stable hook executable without changing Claude settings. Detection follows Claude Code's documented PostToolUse success event (https://code.claude.com/docs/en/hooks#posttooluse). Live authenticated Claude execution and visual particle playback were not exercised for this change.
+
+## New chat control
+
+Added an accessible New Chat button to the right of the bell and a matching menu item. It chooses a project folder and launches the installed Claude executable in Terminal using a private, self-cleaning command file. A subprocess regression test verifies literal handling of paths with spaces, apostrophes and shell substitutions, and launcher cleanup. All 31 tests and the release build passed; the installed bundle passed signature verification. An authenticated Claude conversation was not started during verification.
