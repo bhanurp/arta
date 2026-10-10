@@ -1,64 +1,136 @@
+<div align="center">
+
 # Arta
 
-*Quiet company. Timely nudges.*
+### Quiet company. Timely nudges.
+
+A small desktop companion for your Claude Code sessions.
 
 [![CI](https://github.com/bhanurp/arta/actions/workflows/ci.yml/badge.svg)](https://github.com/bhanurp/arta/actions/workflows/ci.yml)
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-222222?logo=apple)
+![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
+![Local first](https://img.shields.io/badge/Local-first-4EAA76)
 
-A native macOS companion for local Claude Code sessions. An original animated pet floats above other apps, with individual notification cards above it.
+![Arta with completed and waiting-for-input notifications](docs/media/arta-overview.png)
 
-## Install
+**Keep working. Arta will let you know when Claude needs you.**
 
-Open `dist/Arta.app` and click **Install & Start**. This copies the app to `~/Applications`, installs its bundled tracking helper, backs up and merges Claude Code hooks, launches tracking, and discovers ongoing local sessions. No terminal commands or additional runtime are required. Claude Code must already be installed and signed in.
+[See it in action](#a-little-company-while-you-work) · [Get started](#get-started) · [Build from source](#build-from-source)
 
-The current build is locally signed for development, not notarized for public distribution. macOS can require approval when a downloaded build is opened on another computer. Source builds need Xcode Command Line Tools and Swift 6.
+</div>
 
-## Use
+## A little company while you work
 
-- Drag the pet to move it; click it for sessions and settings.
-- Click the notification bell below the pet to show or hide messages. The tray starts collapsed; its orange badge counts unread messages. A new completed response or request for input automatically opens it. Routine activity and errors do not automatically open it. Hidden messages do not time out.
-- When expanded, two message cards are visible by default. Change **Visible messages** to show more or fewer. Closing a card promotes the next pending message.
-- Completed responses stay visible for ten seconds. Requests for input remain until resolved or dismissed. Dismissal never answers or approves Claude.
-- The bell shows unread messages. The menu-bar item shows working and needs-input counts.
-- Click a card to read its available full message. **Open source app** activates the originating app when identifiable; it does not promise the exact terminal tab.
-- The menu-bar menu includes show/hide, a sample notification, disable tracking, and quit.
-- Use **Clear history** to remove historical messages. Live pending messages are retained.
+Arta floats above your other apps and keeps an eye on your local Claude Code sessions. It sits quietly at a laptop while work is happening, greets you when you hover, and animates briefly when a response finishes or needs your input.
 
-## Existing sessions
+<div align="center">
+<img src="docs/media/arta-companion.gif" alt="Arta working quietly, dancing on hover, and showing an input request" width="640">
+</div>
 
-Live local sessions are discovered through Claude Code's local session metadata. Newly started sessions use hooks automatically. A session launched before installation may need `/hooks` or a restart to load the added hooks, depending on Claude Code version. The companion observes new local transcript records as a fallback, but marks unknown status honestly when it cannot determine it. Historical completions do not generate startup notifications.
+### The right nudge, at the right time
 
-Remote SSH/container/cloud sessions and ordinary Claude Desktop chats are not tracked in this version. Project-managed settings, disabled hooks, and `claude --bare` can prevent hook delivery. The diagnostics show whether a real event has arrived.
+- **One place for your sessions.** See which sessions are working or waiting for you.
+- **Notifications that make room.** Two cards appear by default. Choose your own limit; dismiss one to bring the next queued message into view.
+- **Quiet by default.** The button bar appears on hover. Completion and input requests can open the notification tray; routine activity stays out of the way.
+- **No lost input requests.** Completion cards fade after ten visible seconds. Input requests remain until resolved or dismissed. Hidden cards do not time out.
+- **A new chat, one button away.** Choose a project folder and start Claude Code in a new Terminal tab.
 
-## Privacy and configuration
+<details>
+<summary>Take a closer look at an input notification</summary>
 
-All tracking stays on this Mac. Hooks record only session metadata, selected response/request text, and source-app identifiers. The app does not upload conversations or require an API key. Stored response previews are capped at 12,000 characters. The app keeps up to 100 historical notifications, with seven-day cleanup; live input requests are separate.
+![Arta showing a request for permission](docs/media/arta-notification.png)
 
-Data and helper: `~/Library/Application Support/ClaudeCompanion/`. Claude settings: `~/.claude/settings.json`, or the `CLAUDE_CONFIG_DIR` inherited by the app. Backups are written beside the settings file. Disable tracking removes only the companion's hook commands. Other hooks and unrelated settings are retained.
+</details>
 
-## Build and test
+### Little celebrations for Git milestones
 
-```
-swift format lint --strict --recursive Sources Tests Package.swift
+Successful commits release an orange icon; pushes release a teal arrow. They drift above the pet and fade over three seconds, without opening the notification tray.
+
+<div align="center">
+<img src="docs/media/arta-git.gif" alt="Orange commit and teal push icons floating upward above Arta" width="640">
+</div>
+
+<sub>Documentation visuals are staged previews with sample data, rendered from Arta’s native AppKit views. The Git animation illustrates the effect; timing and available height vary on screen. No private sessions are shown.</sub>
+
+## Get started
+
+**Requires macOS 14 or later and an installed, signed-in copy of Claude Code.**
+
+1. Download the **Arta-macOS-development** artifact from a successful [CI run](https://github.com/bhanurp/arta/actions/workflows/ci.yml), or build from source below.
+2. Extract the archive, open **Arta.app**, and click **Install & Start**.
+3. Approve macOS Automation and Accessibility requests to enable new Terminal tabs. Permission setup can be retried from the menu bar.
+4. Start a Claude Code session. Arta picks up its events automatically.
+
+Installation copies Arta into `~/Applications`, installs the tracking helper, and backs up and merges Claude Code’s hook settings. Existing hooks and unrelated settings are preserved. **Disable tracking** removes only Arta’s hook entries.
+
+> Development builds are ad-hoc signed, not notarized for public distribution. macOS may require approval to open a downloaded build. These are development artifacts, not a public release installer.
+
+## Make yourself at home
+
+| Action | What happens |
+| --- | --- |
+| Drag the pet | Move Arta around your screen |
+| Hover over the pet | Say hello and reveal the button bar |
+| Click the pet or Sessions | Open sessions and settings |
+| Click the bell | Show or hide notification cards |
+| Click New Chat | Choose a folder and open a fresh Claude Code session |
+| Click a notification | Read its message and optionally open the source app |
+| Change Visible messages | Set how many notification cards appear at once |
+| Use the menu bar | Show/hide Arta, preview a notification, set up permissions, or disable tracking |
+
+Hover and attention animations respect **macOS Reduce Motion**. Dismissing a notification never answers a question or grants Claude permission.
+
+## Local by design
+
+Arta does not upload conversations or require an API key. Tracking stays on your Mac. The helper records session metadata, selected response/request text, and source-app identifiers.
+
+- Response previews are capped at 12,000 characters.
+- History retains up to 100 notifications, with seven-day cleanup; live input requests are separate.
+- App data and the helper live in `~/Library/Application Support/ClaudeCompanion/`.
+- Hook configuration lives in `~/.claude/settings.json`, or the `CLAUDE_CONFIG_DIR` inherited by Arta. Backups are stored alongside it.
+
+The internal `ClaudeCompanion` identifiers remain for compatibility with earlier builds.
+
+## What is supported today?
+
+**Local Claude Code sessions.** Arta discovers running sessions from local metadata and observes new transcript records as a fallback. Sessions started before installation may need `/hooks` or a restart to load the hooks. Unknown status is shown when there is not enough evidence; old completions do not generate startup notifications.
+
+Claude Desktop conversations, SSH, containers, and cloud sessions are not tracked yet. Disabled hooks, project-managed settings, and `claude --bare` may prevent delivery. Opening a notification’s source activates its app; it does not guarantee navigation to an exact terminal tab.
+
+Git effects recognize simple `git commit` and `git push` calls, including `git -C`/`-c` and successful `cd`/`git add` chains joined with `&&`. Scripts, aliases, complex shell expressions, dry runs, failed calls, and interrupted calls are skipped.
+
+## Build from source
+
+Use **Xcode 26.2 / Swift 6.2.3** to match CI. There are no third-party runtime dependencies.
+
+```bash
+git clone https://github.com/bhanurp/arta.git
+cd arta
 swift test -Xswiftc -warnings-as-errors
 scripts/build-app.sh
+open dist/Arta.app
 ```
 
-The build produces `dist/Arta.app`. The implementation uses AppKit and Foundation with no third-party runtime dependencies. The sprite artwork is original generated pixel art; its four rows represent idle, working, waiting, and finished.
+### Code quality and CI
 
-See `VERIFICATION.md` for evidence and remaining limits.
+Every push and pull request runs macOS GitHub Actions checks for:
 
-The pet stays still during normal activity and sits behind a laptop while working. Completion and input requests get a brief six-second animation; macOS Reduce Motion disables that animation.
+- Strict Swift formatting and lint.
+- Compilation with warnings treated as errors.
+- Tests with coverage.
+- Shell syntax and property-list validation.
+- Release app packaging and code-signature verification.
 
-Successful Claude Code Bash calls containing simple `git commit` or `git push` commands release a small floating commit symbol or upload arrow. The effect rises up to 310 points and fades over three seconds without opening the tray or animating the pet. Simple `cd`/`git add`/commit/push chains joined with `&&` and Git `-C`/`-c` options are supported; scripts, aliases, substitutions, and complex shell expressions are intentionally skipped. Dry runs, failed or interrupted calls, hidden companions, and Reduce Motion do not emit particles.
+Run the style check locally:
 
-The New Chat button sits to the right of the bell. Choose a project folder to open a fresh Claude Code session in Terminal; the existing tracking hooks pick it up automatically. Claude Code must already be installed and signed in.
+```bash
+swift format lint --strict --recursive Sources Tests Package.swift
+```
 
-Hover over the pet to make it dance; moving away returns it to its normal pose. Completion and input notifications briefly animate it even when other sessions are still working. Hover and notification animation respect macOS Reduce Motion.
+Regenerate the staged README visuals on macOS:
 
-After installation, macOS permission setup requests Automation for Terminal/System Events and Accessibility for opening a new Terminal tab. Approve these in macOS; permissions are never changed by the app. You can retry through “Set up Terminal permissions…” in the menu bar. New Chat now targets a new tab in an existing Terminal window, or creates a window if none exists. Without permission, it explains what is missing. It does not send a command unless a new tab is confirmed.
+```bash
+scripts/render-readme-media.sh
+```
 
-The button bar is hidden by default. Hover over the pet to reveal it; it stays visible while moving down to its buttons and hides shortly after leaving the combined pet-and-controls area. Notification card visibility is independent.
-
-## Continuous integration
-
-GitHub Actions runs on every push and pull request, with manual runs available. macOS with Xcode 26.2 checks Swift formatting and lint, builds with warnings treated as errors, runs the tests with coverage, and packages and verifies the signed development app. Successful builds provide an Arta app archive as a workflow artifact. Internal `ClaudeCompanion` storage and bundle identifiers are retained for compatibility with existing tracking settings.
+See [VERIFICATION.md](VERIFICATION.md) for verification history and known limits.
