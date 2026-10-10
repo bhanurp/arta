@@ -174,6 +174,7 @@ final class PetPanel: NSObject {
   let petPanel: FloatingPanel
   let pet = PetView(frame: NSRect(x: 15, y: 42, width: 130, height: 130))
   var cards: [FloatingPanel] = []
+  var particlePanels: [FloatingPanel] = []
   var signature = ""
   var onOpen: ((Notice) -> Void)?
   var onDismiss: ((UUID) -> Void)?
@@ -332,10 +333,23 @@ final class PetPanel: NSObject {
     guard petPanel.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
       !activities.isEmpty
     else { return }
-    pet.wantsLayer = true
-    guard let host = pet.layer else { return }
-    // Cap overlapping particles so bursts of tool activity remain unobtrusive.
-    let available = max(0, 6 - (host.sublayers ?? []).filter { $0.name == "git-particle" }.count)
+    // A separate click-through window lets droplets rise beyond the pet's bounds.
+    guard particlePanels.count < 3 else { return }
+    let screen = petPanel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
+    let originY = petPanel.frame.minY + 110
+    let height = min(340, max(40, screen.maxY - originY))
+    let overlay = FloatingPanel(
+      contentRect: NSRect(x: petPanel.frame.minX - 30, y: originY, width: 220, height: height),
+      styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+    configure(overlay)
+    overlay.ignoresMouseEvents = true
+    let canvas = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: height))
+    canvas.wantsLayer = true
+    overlay.contentView = canvas
+    guard let host = canvas.layer else { return }
+    particlePanels.append(overlay)
+    overlay.orderFrontRegardless()
+    let available = 2
     for (index, activity) in Array(activities.prefix(available)).enumerated() {
       let particle = CALayer()
       particle.name = "git-particle"
@@ -361,23 +375,30 @@ final class PetPanel: NSObject {
       icon.fillColor = particle.backgroundColor
       icon.lineWidth = 1.8
       particle.addSublayer(icon)
-      let x = index % 2 == 0 ? 18.0 : 108.0
-      particle.position = CGPoint(x: x, y: 85)
+      let x = index % 2 == 0 ? 63.0 : 153.0
+      particle.position = CGPoint(x: x, y: 16)
       host.addSublayer(particle)
       let drift = CAKeyframeAnimation(keyPath: "position")
-      drift.values = [CGPoint(x: x, y: 85), CGPoint(x: x + 7, y: 118), CGPoint(x: x + 3, y: 106)]
-        .map { NSValue(point: $0) }
-      drift.keyTimes = [0, 0.7, 1]
+      drift.values = [
+        CGPoint(x: x, y: 16), CGPoint(x: x - 12, y: height * 0.4),
+        CGPoint(x: x + 10, y: height * 0.75), CGPoint(x: x + 3, y: height - 14),
+      ]
+      .map { NSValue(point: $0) }
+      drift.keyTimes = [0, 0.35, 0.7, 1]
       let fade = CAKeyframeAnimation(keyPath: "opacity")
       fade.values = [0, 0.9, 0.9, 0]
-      fade.keyTimes = [0, 0.12, 0.55, 1]
+      fade.keyTimes = [0, 0.08, 0.65, 1]
       let group = CAAnimationGroup()
       group.animations = [drift, fade]
-      group.duration = 1.8
+      group.duration = 3.0
       group.timingFunction = CAMediaTimingFunction(name: .easeOut)
       particle.opacity = 0
       particle.add(group, forKey: "float-and-fade")
-      DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) { particle.removeFromSuperlayer() }
+
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 3.1) { [weak self] in
+      overlay.close()
+      self?.particlePanels.removeAll { $0 === overlay }
     }
   }
   func revealForAttention() {
@@ -410,6 +431,8 @@ final class PetPanel: NSObject {
       petPanel.orderFrontRegardless()
       if trayExpanded { cards.forEach { $0.orderFrontRegardless() } }
     } else {
+      particlePanels.forEach { $0.close() }
+      particlePanels.removeAll()
       toolbar.isHidden = true
       pet.hovering = false
       pet.frameIndex = 0

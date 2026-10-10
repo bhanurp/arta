@@ -68,3 +68,7 @@ Added installed-location permission onboarding, an explicit retry menu, Apple Ev
 ## Hover-only button bar
 
 The button bar now starts hidden. An always-active tracking region covers the pet, intervening gap, and buttons, with a cancellable 250 ms delay on exit. Hiding the companion also hides its controls. The existing 33 tests, release build, and installed signature verification passed. Physical pointer traversal was not visually verified in this follow-up.
+
+## Higher Git droplets
+
+Moved particles into temporary transparent, click-through windows so they can rise outside the pet's bounds. They travel up to 310 points over three seconds with a gentle sideways drift; height is limited by available screen space. Concurrent bursts are capped and overlays close when finished or the companion is hidden. Existing 33 tests, release build, and installed signature verification passed.
