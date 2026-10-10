@@ -235,6 +235,13 @@ final class PetPanel: NSObject {
       cards.forEach { $0.orderOut(nil) }
     }
   }
+  func revealForAttention() {
+    guard petPanel.isVisible else { return }
+    trayExpanded = true
+    bell.setAccessibilityLabel("Hide notifications")
+    positionCards()
+    cards.forEach { $0.orderFrontRegardless() }
+  }
   func animate() {
     pet.frameIndex =
       NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : (pet.frameIndex + 1) % 4

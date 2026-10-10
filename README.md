@@ -11,7 +11,7 @@ The current build is locally signed for development, not notarized for public di
 ## Use
 
 - Drag the pet to move it; click it for sessions and settings.
-- Click the notification bell below the pet to show or hide messages. The tray starts collapsed; its orange badge counts unread messages. Hidden messages do not time out.
+- Click the notification bell below the pet to show or hide messages. The tray starts collapsed; its orange badge counts unread messages. A new completed response or request for input automatically opens it. Routine activity and errors do not automatically open it. Hidden messages do not time out.
 - When expanded, two message cards are visible by default. Change **Visible messages** to show more or fewer. Closing a card promotes the next pending message.
 - Completed responses stay visible for ten seconds. Requests for input remain until resolved or dismissed. Dismissal never answers or approves Claude.
 - The bell shows unread messages. The menu-bar item shows working and needs-input counts.

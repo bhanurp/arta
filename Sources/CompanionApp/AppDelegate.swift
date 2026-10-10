@@ -93,9 +93,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let events = try inbox.pendingEvents()
         if !events.isEmpty {
           var updated = store
-          for e in events { updated.apply(e) }
+          var shouldReveal = false
+          for e in events { if updated.apply(e) { shouldReveal = true } }
           try Persistence.save(updated, to: stateFile)
           store = updated
+          if shouldReveal { panel.revealForAttention() }
           try inbox.acknowledge(events)
           for e in events { hookSessions.insert(e.sessionID) }
           lastEvent = now
@@ -115,7 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             url: url, sessionID: session.id, project: session.project)
         {
           for event in updates where !hookSessions.contains(session.id) || event.kind == .failed {
-            store.apply(event)
+            if store.apply(event) { panel.revealForAttention() }
           }
         }
       }

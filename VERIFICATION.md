@@ -40,3 +40,7 @@ The collapsed bell UI was exercised directly: four helper-delivered preview mess
 The final installed executable was checksum-matched to the release artifact, and its code signature verified. Notification-history links were exercised through the UI: opening and closing a faded preview reduced unread count from four to three. All temporary preview sessions/messages were removed afterward. The app was relaunched from `~/Applications/Claude Companion.app` with the tray collapsed.
 
 The new repository remains on its local feature branch; no pre-existing main branch or remote was present, and nothing was published.
+
+## Attention-only automatic opening
+
+The tray now automatically opens for a newly accepted completion or input request while the companion is visible. Routine activity, failures, stale events, and duplicate input requests do not trigger opening. Manual bell access remains available. Two additional regression tests passed (25 total); the release build and installed bundle signature verification passed, and the updated installed app was relaunched. This follow-up was verified through automated event policy tests; live Claude completion remains subject to the authentication limitation above.

@@ -47,12 +47,12 @@ public struct SessionStore: Codable {
   public var queue = NotificationQueue()
   public var seen: [UUID] = []
   public init() {}
-  public mutating func apply(_ event: SessionEvent) {
-    guard !seen.contains(event.id) else { return }
+  @discardableResult public mutating func apply(_ event: SessionEvent) -> Bool {
+    guard !seen.contains(event.id) else { return false }
     seen.append(event.id)
     seen = Array(seen.suffix(2000))
     let old = sessions[event.sessionID]
-    guard old == nil || event.time >= old!.updated else { return }
+    guard old == nil || event.time >= old!.updated else { return false }
     let snapshot = SessionSnapshot(
       id: event.sessionID, state: event.kind, project: event.project, updated: event.time,
       message: event.message ?? old?.message, host: event.host ?? old?.host,
@@ -75,7 +75,9 @@ public struct SessionStore: Codable {
               ? "Claude needs your input"
               : event.kind == .failed ? "The response failed" : "Response finished"),
           needsInput: event.kind == .needsInput, created: event.time))
+      return event.kind == .finished || event.kind == .needsInput
     }
+    return false
   }
 }
 extension SessionStore {
