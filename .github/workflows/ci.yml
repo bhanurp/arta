@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+
+jobs:
+  quality:
+    name: Swift code quality
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: swift --version
+      - name: Swift formatting and lint
+        run: swift format lint --strict --recursive Sources Tests Package.swift
+      - name: Shell and property list validation
+        run: |
+          bash -n scripts/build-app.sh
+          plutil -lint Resources/Info.plist
+      - name: Compile with warnings as errors
+        run: swift build -Xswiftc -warnings-as-errors
+
+  tests:
+    name: Tests and app bundle
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Tests with coverage
+        run: swift test --enable-code-coverage -Xswiftc -warnings-as-errors
+      - name: Package development app
+        run: scripts/build-app.sh
+      - name: Verify app bundle
+        run: |
+          codesign --verify --deep --strict dist/Arta.app
+          test -x dist/Arta.app/Contents/MacOS/CompanionApp
+          test -x dist/Arta.app/Contents/MacOS/CompanionHook
+          test -f dist/Arta.app/Contents/Resources/Pet/sprites.png
+          ditto -c -k --sequesterRsrc --keepParent dist/Arta.app dist/Arta.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Arta-macOS-development
+          path: dist/Arta.zip
+          if-no-files-found: error
+          retention-days: 14

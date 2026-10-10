@@ -78,7 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     if !installed && !CommandLine.arguments.contains("--demo") { showSessions() }
     let installedPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
-      "Applications/Claude Companion.app")
+      "Applications/Arta.app")
     if installed, Bundle.main.bundleURL.standardizedFileURL == installedPath.standardizedFileURL,
       !UserDefaults.standard.bool(forKey: "terminalPermissionsRequested")
     {
@@ -249,7 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let w = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 650, height: 570),
       styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-    w.title = "Claude Companion"
+    w.title = "Arta"
     w.isReleasedWhenClosed = false
     w.minSize = NSSize(width: 650, height: 570)
     w.center()
@@ -397,7 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let applications = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
         "Applications")
       try FileManager.default.createDirectory(at: applications, withIntermediateDirectories: true)
-      let destination = applications.appendingPathComponent("Claude Companion.app")
+      let destination = applications.appendingPathComponent("Arta.app")
       if Bundle.main.bundleURL.standardizedFileURL != destination.standardizedFileURL {
         let staged = applications.appendingPathComponent(
           ".ClaudeCompanion-\(UUID().uuidString).app")

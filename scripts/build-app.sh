@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 swift build -c release
 BIN="$(swift build -c release --show-bin-path)"
-APP="$PWD/dist/Claude Companion.app"
+APP="$PWD/dist/Arta.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/CompanionApp" "$APP/Contents/MacOS/CompanionApp"
 cp "$BIN/CompanionHook" "$APP/Contents/MacOS/CompanionHook"

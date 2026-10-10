@@ -190,7 +190,7 @@ final class PetPanel: NSObject {
       styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
     super.init()
     configure(petPanel)
-    petPanel.title = "Claude Companion pet"
+    petPanel.title = "Arta pet"
     let content = CompanionHoverView(frame: NSRect(x: 0, y: 0, width: 160, height: 180))
     content.addSubview(pet)
     petPanel.contentView = content
@@ -300,7 +300,7 @@ final class PetPanel: NSObject {
     let key = notices.map { $0.id.uuidString }.joined()
     guard key != signature else { return }
     signature = key
-    cards.forEach { $0.close() }
+    for panel in cards { panel.close() }
     cards = []
     for n in notices {
       let panel = FloatingPanel(
@@ -314,7 +314,7 @@ final class PetPanel: NSObject {
       cards.append(panel)
     }
     positionCards()
-    if petPanel.isVisible && trayExpanded { cards.forEach { $0.orderFrontRegardless() } }
+    if petPanel.isVisible && trayExpanded { for panel in cards { panel.orderFrontRegardless() } }
   }
   @objc func startNewChat() { onNewChat?() }
   @objc func showSessions() { onSessions?() }
@@ -324,9 +324,9 @@ final class PetPanel: NSObject {
     onToggle?()
     positionCards()
     if trayExpanded && petPanel.isVisible {
-      cards.forEach { $0.orderFrontRegardless() }
+      for panel in cards { panel.orderFrontRegardless() }
     } else {
-      cards.forEach { $0.orderOut(nil) }
+      for panel in cards { panel.orderOut(nil) }
     }
   }
   func emitGitActivities(_ activities: [GitActivity]) {
@@ -409,7 +409,7 @@ final class PetPanel: NSObject {
     trayExpanded = true
     bell.setAccessibilityLabel("Hide notifications")
     positionCards()
-    cards.forEach { $0.orderFrontRegardless() }
+    for panel in cards { panel.orderFrontRegardless() }
   }
   func animate() {
     let next = PetMotion.frame(
@@ -429,15 +429,15 @@ final class PetPanel: NSObject {
   func setVisible(_ show: Bool) {
     if show {
       petPanel.orderFrontRegardless()
-      if trayExpanded { cards.forEach { $0.orderFrontRegardless() } }
+      if trayExpanded { for panel in cards { panel.orderFrontRegardless() } }
     } else {
-      particlePanels.forEach { $0.close() }
+      for panel in particlePanels { panel.close() }
       particlePanels.removeAll()
       toolbar.isHidden = true
       pet.hovering = false
       pet.frameIndex = 0
       petPanel.orderOut(nil)
-      cards.forEach { $0.orderOut(nil) }
+      for panel in cards { panel.orderOut(nil) }
     }
   }
 }

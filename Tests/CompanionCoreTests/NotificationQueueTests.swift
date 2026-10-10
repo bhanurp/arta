@@ -11,7 +11,7 @@ final class NotificationQueueTests: XCTestCase {
     let a = notice("a")
     let b = notice("b")
     let c = notice("c")
-    [a, b, c].forEach { q.enqueue($0) }
+    for item in [a, b, c] { q.enqueue(item) }
     XCTAssertEqual(q.visible.map(\.id), [a.id, b.id])
     q.dismiss(id: b.id)
     XCTAssertEqual(q.visible.map(\.id), [a.id, c.id])
@@ -19,7 +19,7 @@ final class NotificationQueueTests: XCTestCase {
   }
   func testPendingDoesNotExpire() {
     var q = NotificationQueue()
-    [notice("a"), notice("b"), notice("c")].forEach { q.enqueue($0) }
+    for item in [notice("a"), notice("b"), notice("c")] { q.enqueue(item) }
     q.tick(seconds: 10)
     XCTAssertEqual(q.visible.first?.sessionID, "c")
     XCTAssertEqual(q.visible.first?.remaining, 10)
@@ -40,7 +40,9 @@ final class NotificationQueueTests: XCTestCase {
   }
   func testPriorityWithoutDisplacement() {
     var q = NotificationQueue()
-    [notice("a"), notice("b"), notice("c"), notice("d", input: true)].forEach { q.enqueue($0) }
+    for item in [notice("a"), notice("b"), notice("c"), notice("d", input: true)] {
+      q.enqueue(item)
+    }
     XCTAssertEqual(q.visible.first?.sessionID, "a")
     if let first = q.visible.first { q.dismiss(id: first.id) }
     XCTAssertEqual(q.visible.last?.sessionID, "d")

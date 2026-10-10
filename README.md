@@ -1,10 +1,14 @@
-# Claude Companion
+# Arta
+
+*Quiet company. Timely nudges.*
+
+[![CI](https://github.com/bhanurp/arta/actions/workflows/ci.yml/badge.svg)](https://github.com/bhanurp/arta/actions/workflows/ci.yml)
 
 A native macOS companion for local Claude Code sessions. An original animated pet floats above other apps, with individual notification cards above it.
 
 ## Install
 
-Open `dist/Claude Companion.app` and click **Install & Start**. This copies the app to `~/Applications`, installs its bundled tracking helper, backs up and merges Claude Code hooks, launches tracking, and discovers ongoing local sessions. No terminal commands or additional runtime are required. Claude Code must already be installed and signed in.
+Open `dist/Arta.app` and click **Install & Start**. This copies the app to `~/Applications`, installs its bundled tracking helper, backs up and merges Claude Code hooks, launches tracking, and discovers ongoing local sessions. No terminal commands or additional runtime are required. Claude Code must already be installed and signed in.
 
 The current build is locally signed for development, not notarized for public distribution. macOS can require approval when a downloaded build is opened on another computer. Source builds need Xcode Command Line Tools and Swift 6.
 
@@ -34,11 +38,12 @@ Data and helper: `~/Library/Application Support/ClaudeCompanion/`. Claude settin
 ## Build and test
 
 ```
-swift test
+swift format lint --strict --recursive Sources Tests Package.swift
+swift test -Xswiftc -warnings-as-errors
 scripts/build-app.sh
 ```
 
-The build produces `dist/Claude Companion.app`. The implementation uses AppKit and Foundation with no third-party runtime dependencies. The sprite artwork is original generated pixel art; its four rows represent idle, working, waiting, and finished.
+The build produces `dist/Arta.app`. The implementation uses AppKit and Foundation with no third-party runtime dependencies. The sprite artwork is original generated pixel art; its four rows represent idle, working, waiting, and finished.
 
 See `VERIFICATION.md` for evidence and remaining limits.
 
@@ -53,3 +58,7 @@ Hover over the pet to make it dance; moving away returns it to its normal pose. 
 After installation, macOS permission setup requests Automation for Terminal/System Events and Accessibility for opening a new Terminal tab. Approve these in macOS; permissions are never changed by the app. You can retry through “Set up Terminal permissions…” in the menu bar. New Chat now targets a new tab in an existing Terminal window, or creates a window if none exists. Without permission, it explains what is missing. It does not send a command unless a new tab is confirmed.
 
 The button bar is hidden by default. Hover over the pet to reveal it; it stays visible while moving down to its buttons and hides shortly after leaving the combined pet-and-controls area. Notification card visibility is independent.
+
+## Continuous integration
+
+GitHub Actions runs on every push and pull request, with manual runs available. macOS with Xcode 26.2 checks Swift formatting and lint, builds with warnings treated as errors, runs the tests with coverage, and packages and verifies the signed development app. Successful builds provide an Arta app archive as a workflow artifact. Internal `ClaudeCompanion` storage and bundle identifiers are retained for compatibility with existing tracking settings.

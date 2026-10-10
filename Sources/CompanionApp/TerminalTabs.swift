@@ -28,10 +28,10 @@ enum TerminalTabs {
       try execute("tell application \"System Events\" to get version")
       return trusted
         ? "Terminal tab permissions are ready."
-        : "Enable Claude Companion in System Settings → Privacy & Security → Accessibility. Then use New Chat."
+        : "Enable Arta in System Settings → Privacy & Security → Accessibility. Then use New Chat."
     } catch {
       return
-        "Allow Claude Companion to control Terminal and System Events in System Settings → Privacy & Security → Automation. Also enable Accessibility. \(error.localizedDescription)"
+        "Allow Arta to control Terminal and System Events in System Settings → Privacy & Security → Automation. Also enable Accessibility. \(error.localizedDescription)"
     }
   }
   static func open(script: URL) throws {
@@ -40,7 +40,7 @@ enum TerminalTabs {
         domain: "TerminalTabs", code: 2,
         userInfo: [
           NSLocalizedDescriptionKey:
-            "Enable Accessibility for Claude Companion, then try New Chat again."
+            "Enable Accessibility for Arta, then try New Chat again."
         ])
     }
     let command = "/bin/zsh '" + script.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
