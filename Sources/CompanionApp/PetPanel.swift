@@ -11,7 +11,34 @@ final class PetView: NSView {
   var moved: (() -> Void)?
   var row = 0
   var frameIndex = 0
+  var lastAnimatedRow = -1
   var attentionStarted = Date.distantPast
+  var notificationStarted = Date.distantPast
+  var hoverStarted = Date.distantPast
+  var hovering = false
+  var hoverTracking: NSTrackingArea?
+  var notificationActive: Bool { Date().timeIntervalSince(notificationStarted) < 6 }
+  var displayRow: Int { hovering || notificationActive ? (row == 2 ? 2 : 3) : row }
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let hoverTracking { removeTrackingArea(hoverTracking) }
+    let area = NSTrackingArea(
+      rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self,
+      userInfo: nil)
+    addTrackingArea(area)
+    hoverTracking = area
+  }
+  override func mouseEntered(with event: NSEvent) {
+    hovering = true
+    hoverStarted = Date()
+    frameIndex = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 1
+    needsDisplay = true
+  }
+  override func mouseExited(with event: NSEvent) {
+    hovering = false
+    frameIndex = 0
+    needsDisplay = true
+  }
   var dragged = false
   var badge = ""
   let sheet: NSImage? = NSImage(
@@ -24,10 +51,11 @@ final class PetView: NSView {
     }
     let w = cg.width / 4
     let h = cg.height / 4
-    if let crop = cg.cropping(to: CGRect(x: frameIndex * w, y: row * h, width: w, height: h)) {
+    if let crop = cg.cropping(to: CGRect(x: frameIndex * w, y: displayRow * h, width: w, height: h))
+    {
       NSGraphicsContext.current?.imageInterpolation = .none
       NSImage(cgImage: crop, size: NSSize(width: w, height: h)).draw(in: bounds)
-      if row == 1 {
+      if displayRow == 1 {
         // A quiet laptop pose, drawn in front of the character's lower body.
         let screen = NSRect(x: 24, y: 14, width: 82, height: 48)
         NSColor(calibratedWhite: 0.16, alpha: 1).setFill()
@@ -327,7 +355,9 @@ final class PetPanel: NSObject {
   }
   func revealForAttention() {
     guard petPanel.isVisible else { return }
+    pet.notificationStarted = Date()
     pet.attentionStarted = Date()
+    pet.needsDisplay = true
     trayExpanded = true
     bell.setAccessibilityLabel("Hide notifications")
     positionCards()
@@ -335,9 +365,15 @@ final class PetPanel: NSObject {
   }
   func animate() {
     let next = PetMotion.frame(
-      state: pet.row, elapsed: Date().timeIntervalSince(pet.attentionStarted),
-      reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
-    if next != pet.frameIndex {
+      state: pet.row,
+      elapsed: Date().timeIntervalSince(
+        pet.hovering
+          ? pet.hoverStarted
+          : pet.notificationActive ? pet.notificationStarted : pet.attentionStarted),
+      reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+      hovering: pet.hovering, attention: pet.notificationActive)
+    if next != pet.frameIndex || pet.lastAnimatedRow != pet.displayRow {
+      pet.lastAnimatedRow = pet.displayRow
       pet.frameIndex = next
       pet.needsDisplay = true
     }
@@ -347,6 +383,8 @@ final class PetPanel: NSObject {
       petPanel.orderFrontRegardless()
       if trayExpanded { cards.forEach { $0.orderFrontRegardless() } }
     } else {
+      pet.hovering = false
+      pet.frameIndex = 0
       petPanel.orderOut(nil)
       cards.forEach { $0.orderOut(nil) }
     }

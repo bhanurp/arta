@@ -56,3 +56,7 @@ Added optional activity metadata to existing hook events and brief Core Animatio
 ## New chat control
 
 Added an accessible New Chat button to the right of the bell and a matching menu item. It chooses a project folder and launches the installed Claude executable in Terminal using a private, self-cleaning command file. A subprocess regression test verifies literal handling of paths with spaces, apostrophes and shell substitutions, and launcher cleanup. All 31 tests and the release build passed; the installed bundle passed signature verification. An authenticated Claude conversation was not started during verification.
+
+## Hover and notification dance
+
+Added always-active pointer tracking over the pet, with celebration frames while hovered and a reset on pointer exit or hiding. Explicit notification animation now overrides a working pose for six seconds, so another busy session cannot suppress it. Added hover duration/exit, reduced-motion and concurrent-work regression coverage: all 33 tests passed. Release build and installed signature verification passed. Physical pointer playback was not visually verified in this follow-up.
