@@ -93,10 +93,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let events = try inbox.pendingEvents()
         if !events.isEmpty {
           var updated = store
+          let activities = events.filter {
+            !store.seen.contains($0.id) && now.timeIntervalSince($0.time) < 10
+          }.flatMap { $0.gitActivities ?? [] }
           var shouldReveal = false
           for e in events { if updated.apply(e) { shouldReveal = true } }
           try Persistence.save(updated, to: stateFile)
           store = updated
+          panel.emitGitActivities(activities)
           if shouldReveal { panel.revealForAttention() }
           try inbox.acknowledge(events)
           for e in events { hookSessions.insert(e.sessionID) }

@@ -1,5 +1,6 @@
 import AppKit
 import CompanionCore
+import QuartzCore
 
 final class FloatingPanel: NSPanel {
   override var canBecomeKey: Bool { true }
@@ -253,6 +254,58 @@ final class PetPanel: NSObject {
       cards.forEach { $0.orderFrontRegardless() }
     } else {
       cards.forEach { $0.orderOut(nil) }
+    }
+  }
+  func emitGitActivities(_ activities: [GitActivity]) {
+    guard petPanel.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+      !activities.isEmpty
+    else { return }
+    pet.wantsLayer = true
+    guard let host = pet.layer else { return }
+    // Cap overlapping particles so bursts of tool activity remain unobtrusive.
+    let available = max(0, 6 - (host.sublayers ?? []).filter { $0.name == "git-particle" }.count)
+    for (index, activity) in Array(activities.prefix(available)).enumerated() {
+      let particle = CALayer()
+      particle.name = "git-particle"
+      particle.bounds = CGRect(x: 0, y: 0, width: 20, height: 20)
+      particle.cornerRadius = 10
+      particle.backgroundColor =
+        (activity == .commit ? NSColor.systemOrange : NSColor.systemTeal).cgColor
+      let icon = CAShapeLayer()
+      let path = CGMutablePath()
+      if activity == .push {
+        path.move(to: CGPoint(x: 10, y: 5))
+        path.addLine(to: CGPoint(x: 10, y: 15))
+        path.move(to: CGPoint(x: 6, y: 11))
+        path.addLine(to: CGPoint(x: 10, y: 15))
+        path.addLine(to: CGPoint(x: 14, y: 11))
+      } else {
+        path.move(to: CGPoint(x: 4, y: 10))
+        path.addLine(to: CGPoint(x: 16, y: 10))
+        path.addEllipse(in: CGRect(x: 7, y: 7, width: 6, height: 6))
+      }
+      icon.path = path
+      icon.strokeColor = NSColor.white.cgColor
+      icon.fillColor = particle.backgroundColor
+      icon.lineWidth = 1.8
+      particle.addSublayer(icon)
+      let x = index % 2 == 0 ? 18.0 : 108.0
+      particle.position = CGPoint(x: x, y: 85)
+      host.addSublayer(particle)
+      let drift = CAKeyframeAnimation(keyPath: "position")
+      drift.values = [CGPoint(x: x, y: 85), CGPoint(x: x + 7, y: 118), CGPoint(x: x + 3, y: 106)]
+        .map { NSValue(point: $0) }
+      drift.keyTimes = [0, 0.7, 1]
+      let fade = CAKeyframeAnimation(keyPath: "opacity")
+      fade.values = [0, 0.9, 0.9, 0]
+      fade.keyTimes = [0, 0.12, 0.55, 1]
+      let group = CAAnimationGroup()
+      group.animations = [drift, fade]
+      group.duration = 1.8
+      group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      particle.opacity = 0
+      particle.add(group, forKey: "float-and-fade")
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) { particle.removeFromSuperlayer() }
     }
   }
   func revealForAttention() {

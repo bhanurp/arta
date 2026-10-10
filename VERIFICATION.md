@@ -48,3 +48,7 @@ The tray now automatically opens for a newly accepted completion or input reques
 ## Quiet pet motion
 
 Idle and working poses are static; working shows a laptop in front of the pet. Input and completion poses animate for at most six seconds per attention signal, and respect macOS Reduce Motion. Failures do not select the completion pose. Motion policy tests bring the suite to 27 passing tests. The updated release built successfully, passed installed bundle signature verification, and was relaunched.
+
+## Git activity particles
+
+Added optional activity metadata to existing hook events and brief Core Animation particles. Parser and hook adapter regressions cover direct commands, quoted arguments, successful chains, ordinary text, scripts, dry runs, failed/interrupted events, and absence of attention notifications. All 30 tests passed; release build and installed signature verification passed. Updated both the installed app and stable hook executable without changing Claude settings. Detection follows Claude Code's documented PostToolUse success event (https://code.claude.com/docs/en/hooks#posttooluse). Live authenticated Claude execution and visual particle playback were not exercised for this change.

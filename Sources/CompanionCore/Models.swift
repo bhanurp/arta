@@ -14,6 +14,7 @@ public struct SessionEvent: Codable {
   public var pid: Int32?
   public var processStart: String?
   public var transcript: String?
+  public var gitActivities: [GitActivity]?
   public var requestID: String?
   public init(
     sessionID: String, kind: SessionState, time: Date = Date(), project: String,

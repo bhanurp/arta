@@ -50,6 +50,14 @@ public enum ClaudeEventAdapter {
     var event = SessionEvent(
       sessionID: id, kind: kind, project: p["cwd"] as? String ?? "",
       message: message.map { String($0.prefix(12000)) })
+    if name == "PostToolUse", tool == "Bash",
+      let input = p["tool_input"] as? [String: Any], let command = input["command"] as? String,
+      let response = p["tool_response"] as? [String: Any],
+      response["interrupted"] as? Bool != true,
+      (response["exit_code"] as? Int ?? 0) == 0
+    {
+      event.gitActivities = GitActivity.detect(command)
+    }
     event.transcript = p["transcript_path"] as? String
     event.requestID = p["tool_use_id"] as? String
     if kind == .finished && event.message == nil, let path = event.transcript {
