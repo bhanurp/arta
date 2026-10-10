@@ -6,6 +6,31 @@ final class FloatingPanel: NSPanel {
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { false }
 }
+/// One hover region spans the pet, the gap, and its controls.
+final class CompanionHoverView: NSView {
+  var onHover: ((Bool) -> Void)?
+  private var area: NSTrackingArea?
+  private var pendingHide: DispatchWorkItem?
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let area { removeTrackingArea(area) }
+    let tracking = NSTrackingArea(
+      rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+      owner: self, userInfo: nil)
+    addTrackingArea(tracking)
+    area = tracking
+  }
+  override func mouseEntered(with event: NSEvent) {
+    pendingHide?.cancel()
+    onHover?(true)
+  }
+  override func mouseExited(with event: NSEvent) {
+    pendingHide?.cancel()
+    let hide = DispatchWorkItem { [weak self] in self?.onHover?(false) }
+    pendingHide = hide
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: hide)
+  }
+}
 final class PetView: NSView {
   var clicked: (() -> Void)?
   var moved: (() -> Void)?
@@ -156,6 +181,7 @@ final class PetPanel: NSObject {
   var onSessions: (() -> Void)?
   var onNewChat: (() -> Void)?
   var trayExpanded = false
+  let toolbar = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 160, height: 38))
   let bell = BellButton(frame: NSRect(x: 56, y: 1, width: 48, height: 36))
   override init() {
     petPanel = FloatingPanel(
@@ -164,10 +190,11 @@ final class PetPanel: NSObject {
     super.init()
     configure(petPanel)
     petPanel.title = "Claude Companion pet"
-    let content = NSView(frame: NSRect(x: 0, y: 0, width: 160, height: 180))
+    let content = CompanionHoverView(frame: NSRect(x: 0, y: 0, width: 160, height: 180))
     content.addSubview(pet)
     petPanel.contentView = content
-    let toolbar = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 160, height: 38))
+    toolbar.isHidden = true
+    content.onHover = { [weak self] hovering in self?.toolbar.isHidden = !hovering }
     toolbar.material = .hudWindow
     toolbar.state = .active
     toolbar.blendingMode = .behindWindow
@@ -383,6 +410,7 @@ final class PetPanel: NSObject {
       petPanel.orderFrontRegardless()
       if trayExpanded { cards.forEach { $0.orderFrontRegardless() } }
     } else {
+      toolbar.isHidden = true
       pet.hovering = false
       pet.frameIndex = 0
       petPanel.orderOut(nil)

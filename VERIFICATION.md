@@ -64,3 +64,7 @@ Added always-active pointer tracking over the pet, with celebration frames while
 ## Terminal tab permissions after installation
 
 Added installed-location permission onboarding, an explicit retry menu, Apple Events usage text, and Terminal new-tab automation with a bounded tab-creation check. Accessibility and Automation are requested via macOS, never granted programmatically. The existing 33 tests and release build passed; installed code signature verification passed. OS consent and actual Terminal tab creation require manual verification after the user grants permission. Ad-hoc development signatures may cause macOS to request consent again after updates.
+
+## Hover-only button bar
+
+The button bar now starts hidden. An always-active tracking region covers the pet, intervening gap, and buttons, with a cancellable 250 ms delay on exit. Hiding the companion also hides its controls. The existing 33 tests, release build, and installed signature verification passed. Physical pointer traversal was not visually verified in this follow-up.
