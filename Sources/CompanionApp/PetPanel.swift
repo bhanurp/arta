@@ -10,6 +10,7 @@ final class PetView: NSView {
   var moved: (() -> Void)?
   var row = 0
   var frameIndex = 0
+  var attentionStarted = Date.distantPast
   var dragged = false
   var badge = ""
   let sheet: NSImage? = NSImage(
@@ -25,6 +26,20 @@ final class PetView: NSView {
     if let crop = cg.cropping(to: CGRect(x: frameIndex * w, y: row * h, width: w, height: h)) {
       NSGraphicsContext.current?.imageInterpolation = .none
       NSImage(cgImage: crop, size: NSSize(width: w, height: h)).draw(in: bounds)
+      if row == 1 {
+        // A quiet laptop pose, drawn in front of the character's lower body.
+        let screen = NSRect(x: 24, y: 14, width: 82, height: 48)
+        NSColor(calibratedWhite: 0.16, alpha: 1).setFill()
+        NSBezierPath(roundedRect: screen, xRadius: 5, yRadius: 5).fill()
+        NSColor(calibratedWhite: 0.48, alpha: 1).setStroke()
+        NSBezierPath(roundedRect: screen.insetBy(dx: 1, dy: 1), xRadius: 4, yRadius: 4).stroke()
+        NSColor(calibratedRed: 0.95, green: 0.57, blue: 0.35, alpha: 1).setFill()
+        NSBezierPath(ovalIn: NSRect(x: 61, y: 34, width: 8, height: 8)).fill()
+        NSColor(calibratedWhite: 0.55, alpha: 1).setFill()
+        NSBezierPath(
+          roundedRect: NSRect(x: 18, y: 10, width: 94, height: 6), xRadius: 3, yRadius: 3
+        ).fill()
+      }
 
     }
   }
@@ -201,7 +216,12 @@ final class PetPanel: NSObject {
     for (p, rect) in zip(cards, layout.cards) { p.setFrame(rect, display: true) }
   }
   func render(_ notices: [Notice], state: Int, unread: Int) {
+    if pet.row != state {
+      pet.attentionStarted = Date()
+      pet.frameIndex = 0
+    }
     pet.row = state
+    pet.needsDisplay = true
     bell.unread = unread
     bell.toolTip = "\(unread) unread notifications — click to \(trayExpanded ? "hide":"show")"
     let key = notices.map { $0.id.uuidString }.joined()
@@ -237,15 +257,20 @@ final class PetPanel: NSObject {
   }
   func revealForAttention() {
     guard petPanel.isVisible else { return }
+    pet.attentionStarted = Date()
     trayExpanded = true
     bell.setAccessibilityLabel("Hide notifications")
     positionCards()
     cards.forEach { $0.orderFrontRegardless() }
   }
   func animate() {
-    pet.frameIndex =
-      NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : (pet.frameIndex + 1) % 4
-    pet.needsDisplay = true
+    let next = PetMotion.frame(
+      state: pet.row, elapsed: Date().timeIntervalSince(pet.attentionStarted),
+      reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+    if next != pet.frameIndex {
+      pet.frameIndex = next
+      pet.needsDisplay = true
+    }
   }
   func setVisible(_ show: Bool) {
     if show {

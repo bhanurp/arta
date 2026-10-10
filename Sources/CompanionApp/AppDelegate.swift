@@ -140,7 +140,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let sessions = Array(store.sessions.values)
     let waiting = sessions.filter { $0.state == .needsInput }.count
     let working = sessions.filter { $0.state == .working }.count
-    let state = waiting > 0 ? 2 : working > 0 ? 1 : store.queue.visible.isEmpty ? 0 : 3
+    let completed = store.queue.visible.contains { notice in
+      sessions.contains { $0.id == notice.sessionID && $0.state == .finished }
+    }
+    let state = waiting > 0 ? 2 : working > 0 ? 1 : completed ? 3 : 0
     panel.pet.badge = "\(working) working · \(store.queue.pending.count) queued"
     panel.render(
       store.queue.visible, state: state, unread: store.queue.allMessages.filter { !$0.read }.count)

@@ -41,3 +41,5 @@ scripts/build-app.sh
 The build produces `dist/Claude Companion.app`. The implementation uses AppKit and Foundation with no third-party runtime dependencies. The sprite artwork is original generated pixel art; its four rows represent idle, working, waiting, and finished.
 
 See `VERIFICATION.md` for evidence and remaining limits.
+
+The pet stays still during normal activity and sits behind a laptop while working. Completion and input requests get a brief six-second animation; macOS Reduce Motion disables that animation.

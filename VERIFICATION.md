@@ -44,3 +44,7 @@ The new repository remains on its local feature branch; no pre-existing main bra
 ## Attention-only automatic opening
 
 The tray now automatically opens for a newly accepted completion or input request while the companion is visible. Routine activity, failures, stale events, and duplicate input requests do not trigger opening. Manual bell access remains available. Two additional regression tests passed (25 total); the release build and installed bundle signature verification passed, and the updated installed app was relaunched. This follow-up was verified through automated event policy tests; live Claude completion remains subject to the authentication limitation above.
+
+## Quiet pet motion
+
+Idle and working poses are static; working shows a laptop in front of the pet. Input and completion poses animate for at most six seconds per attention signal, and respect macOS Reduce Motion. Failures do not select the completion pose. Motion policy tests bring the suite to 27 passing tests. The updated release built successfully, passed installed bundle signature verification, and was relaunched.
