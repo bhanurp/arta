@@ -80,3 +80,7 @@ Renamed the visible product and build artifact to Arta, retaining internal stora
 ## Daily commit counter
 
 Added a compact Git icon/count control alongside Sessions, Bell, and New Chat. Counts successful commit commands observed through tracked Claude Code hooks, preserves the count across restarts, ignores duplicate tool requests and push events, and displays zero after local midnight without waiting for another event. Legacy state files remain compatible. Added tests for persistence, duplicate delivery, multiple commits, old state, late delivery and local-midnight reset; all 36 tests, strict formatting/lint and release build passed. It does not backfill commits made before tracking.
+
+## Git icon badge
+
+Replaced the small filled diamond and separate numeric label with a drawn branch icon and upper-right daily-count badge. Zero is muted, positive counts use orange, and large counts show 99+ while the tooltip/accessibility label retain the full count. Existing 36 tests, strict Swift lint, release build and installed signature verification passed.

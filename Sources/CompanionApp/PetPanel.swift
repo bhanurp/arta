@@ -170,6 +170,44 @@ final class BellButton: NSButton {
     }
   }
 }
+final class GitCounterButton: NSButton {
+  var count = 0 { didSet { needsDisplay = true } }
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+    // A crisp branch silhouette, with the daily count anchored to the icon.
+    let ink = isHighlighted ? NSColor.systemOrange : NSColor.white.withAlphaComponent(0.9)
+    ink.setStroke()
+    let branch = NSBezierPath()
+    branch.lineWidth = 1.8
+    branch.lineCapStyle = .round
+    branch.move(to: NSPoint(x: 15, y: 10))
+    branch.line(to: NSPoint(x: 15, y: 24))
+    branch.move(to: NSPoint(x: 27, y: 10))
+    branch.curve(
+      to: NSPoint(x: 15, y: 21), controlPoint1: NSPoint(x: 27, y: 19),
+      controlPoint2: NSPoint(x: 15, y: 15))
+    branch.stroke()
+    for point in [NSPoint(x: 15, y: 8), NSPoint(x: 15, y: 26), NSPoint(x: 27, y: 8)] {
+      let node = NSBezierPath(
+        ovalIn: NSRect(x: point.x - 2.5, y: point.y - 2.5, width: 5, height: 5))
+      node.lineWidth = 1.8
+      node.stroke()
+    }
+    let text = count > 99 ? "99+" : String(count)
+    let width: CGFloat = count > 99 ? 25 : count > 9 ? 21 : 16
+    let badge = NSRect(x: 27, y: isFlipped ? 0 : bounds.height - 16, width: width, height: 16)
+    (count == 0 ? NSColor(calibratedWhite: 0.35, alpha: 1) : NSColor.systemOrange).setFill()
+    NSBezierPath(roundedRect: badge, xRadius: 8, yRadius: 8).fill()
+    let style = NSMutableParagraphStyle()
+    style.alignment = .center
+    (text as NSString).draw(
+      in: badge.offsetBy(dx: 0, dy: 1),
+      withAttributes: [
+        .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold),
+        .foregroundColor: NSColor.white, .paragraphStyle: style,
+      ])
+  }
+}
 final class PetPanel: NSObject {
   let petPanel: FloatingPanel
   let pet = PetView(frame: NSRect(x: 15, y: 42, width: 130, height: 130))
@@ -184,7 +222,7 @@ final class PetPanel: NSObject {
   var trayExpanded = false
   let toolbar = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 160, height: 34))
   let bell = BellButton(frame: NSRect(x: 35, y: 0, width: 34, height: 34))
-  let gitCount = NSButton(frame: NSRect(x: 106, y: 1, width: 52, height: 32))
+  let gitCount = GitCounterButton(frame: NSRect(x: 106, y: 1, width: 52, height: 32))
   var commitsToday = 0
   override init() {
     petPanel = FloatingPanel(
@@ -246,33 +284,7 @@ final class PetPanel: NSObject {
     newChat.setAccessibilityLabel("New chat")
     toolbar.addSubview(newChat)
     gitCount.isBordered = false
-    gitCount.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
-    gitCount.contentTintColor = .white
-    gitCount.imagePosition = .imageLeading
-    gitCount.image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
-      NSColor.systemOrange.setFill()
-      let diamond = NSBezierPath()
-      diamond.move(to: NSPoint(x: 9, y: 0))
-      diamond.line(to: NSPoint(x: 18, y: 9))
-      diamond.line(to: NSPoint(x: 9, y: 18))
-      diamond.line(to: NSPoint(x: 0, y: 9))
-      diamond.close()
-      diamond.fill()
-      NSColor.white.setStroke()
-      let branch = NSBezierPath()
-      branch.lineWidth = 1.3
-      branch.move(to: NSPoint(x: 6, y: 12))
-      branch.line(to: NSPoint(x: 12, y: 6))
-      branch.move(to: NSPoint(x: 8, y: 10))
-      branch.line(to: NSPoint(x: 8, y: 5))
-      branch.stroke()
-      NSColor.white.setFill()
-      for point in [NSPoint(x: 6, y: 12), NSPoint(x: 12, y: 6), NSPoint(x: 8, y: 5)] {
-        NSBezierPath(ovalIn: NSRect(x: point.x - 1.4, y: point.y - 1.4, width: 2.8, height: 2.8))
-          .fill()
-      }
-      return true
-    }
+    gitCount.title = ""
     gitCount.target = self
     gitCount.action = #selector(showCommitsToday)
     toolbar.addSubview(gitCount)
@@ -331,7 +343,7 @@ final class PetPanel: NSObject {
   }
   func render(_ notices: [Notice], state: Int, unread: Int, commits: Int = 0) {
     commitsToday = commits
-    gitCount.title = commits > 99 ? "99+" : String(commits)
+    gitCount.count = commits
     gitCount.toolTip = "\(commits) commits today · resets at local midnight"
     gitCount.setAccessibilityLabel("\(commits) Git commits today")
     if pet.row != state {
