@@ -151,66 +151,96 @@ final class NotificationCard: NSVisualEffectView {
   override func mouseUp(with event: NSEvent) { open?() }
   @objc func closeCard() { dismiss?() }
 }
-final class BellButton: NSButton {
-  var unread = 0 { didSet { needsDisplay = true } }
+final class TraySurface: NSView {
   override func draw(_ dirtyRect: NSRect) {
-    super.draw(dirtyRect)
-    if unread > 0 {
-      let circle = NSRect(x: bounds.maxX - 20, y: bounds.maxY - 19, width: 19, height: 19)
-      NSColor.systemOrange.setFill()
-      NSBezierPath(ovalIn: circle).fill()
-      let style = NSMutableParagraphStyle()
-      style.alignment = .center
-      (unread > 99 ? "99+" : String(unread) as NSString).draw(
-        in: NSRect(x: circle.minX, y: circle.minY + 3, width: 19, height: 13),
-        withAttributes: [
-          .font: NSFont.systemFont(ofSize: 10, weight: .semibold), .foregroundColor: NSColor.white,
-          .paragraphStyle: style,
-        ])
-    }
+    NSColor(calibratedWhite: 0.13, alpha: 0.96).setFill()
+    let pill = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 22, yRadius: 22)
+    pill.fill()
+    NSColor.white.withAlphaComponent(0.14).setStroke()
+    pill.lineWidth = 1
+    pill.stroke()
   }
 }
-final class GitCounterButton: NSButton {
-  var count = 0 { didSet { needsDisplay = true } }
+class TrayButton: NSButton {
+  var isHovered = false
+  private var hoverArea: NSTrackingArea?
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let hoverArea { removeTrackingArea(hoverArea) }
+    let area = NSTrackingArea(
+      rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self,
+      userInfo: nil)
+    addTrackingArea(area)
+    hoverArea = area
+  }
+  override func mouseEntered(with event: NSEvent) {
+    isHovered = true
+    needsDisplay = true
+  }
+  override func mouseExited(with event: NSEvent) {
+    isHovered = false
+    needsDisplay = true
+  }
   override func draw(_ dirtyRect: NSRect) {
-    super.draw(dirtyRect)
-    // A crisp branch silhouette, with the daily count anchored to the icon.
-    let ink = isHighlighted ? NSColor.systemOrange : NSColor.white.withAlphaComponent(0.9)
-    ink.setStroke()
-    let branch = NSBezierPath()
-    branch.lineWidth = 1.8
-    branch.lineCapStyle = .round
-    branch.move(to: NSPoint(x: 15, y: 10))
-    branch.line(to: NSPoint(x: 15, y: 24))
-    branch.move(to: NSPoint(x: 27, y: 10))
-    branch.curve(
-      to: NSPoint(x: 15, y: 21), controlPoint1: NSPoint(x: 27, y: 19),
-      controlPoint2: NSPoint(x: 15, y: 15))
-    branch.stroke()
-    for point in [NSPoint(x: 15, y: 8), NSPoint(x: 15, y: 26), NSPoint(x: 27, y: 8)] {
-      let node = NSBezierPath(
-        ovalIn: NSRect(x: point.x - 2.5, y: point.y - 2.5, width: 5, height: 5))
-      node.lineWidth = 1.8
-      node.stroke()
+    if isHovered || isHighlighted {
+      NSColor.white.withAlphaComponent(isHighlighted ? 0.13 : 0.065).setFill()
+      NSBezierPath(roundedRect: bounds.insetBy(dx: 3, dy: 5), xRadius: 10, yRadius: 10).fill()
     }
+    super.draw(dirtyRect)
+  }
+  func drawBadge(_ count: Int, color: NSColor) {
     let text = count > 99 ? "99+" : String(count)
-    let width: CGFloat = count > 99 ? 25 : count > 9 ? 21 : 16
-    let badge = NSRect(x: 27, y: isFlipped ? 0 : bounds.height - 16, width: width, height: 16)
-    (count == 0 ? NSColor(calibratedWhite: 0.35, alpha: 1) : NSColor.systemOrange).setFill()
-    NSBezierPath(roundedRect: badge, xRadius: 8, yRadius: 8).fill()
+    let width: CGFloat = count > 99 ? 23 : count > 9 ? 19 : 16
+    let rect = NSRect(
+      x: bounds.maxX - width - 1, y: isFlipped ? 3 : bounds.height - 19, width: width, height: 16)
+    color.setFill()
+    NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8).fill()
     let style = NSMutableParagraphStyle()
     style.alignment = .center
     (text as NSString).draw(
-      in: badge.offsetBy(dx: 0, dy: 1),
+      in: rect.offsetBy(dx: 0, dy: 1),
       withAttributes: [
-        .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold),
+        .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium),
         .foregroundColor: NSColor.white, .paragraphStyle: style,
       ])
   }
 }
+final class BellButton: TrayButton {
+  var unread = 0 { didSet { needsDisplay = true } }
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+    if unread > 0 {
+      drawBadge(unread, color: NSColor(calibratedRed: 0.64, green: 0.45, blue: 0.94, alpha: 1))
+    }
+  }
+}
+final class GitCounterButton: TrayButton {
+  var count = 0 { didSet { needsDisplay = true } }
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+    NSColor.white.withAlphaComponent(0.92).setStroke()
+    let branch = NSBezierPath()
+    branch.lineWidth = 1.6
+    branch.lineCapStyle = .round
+    branch.move(to: NSPoint(x: 15, y: 15))
+    branch.line(to: NSPoint(x: 15, y: 29))
+    branch.move(to: NSPoint(x: 27, y: 15))
+    branch.curve(
+      to: NSPoint(x: 15, y: 26), controlPoint1: NSPoint(x: 27, y: 24),
+      controlPoint2: NSPoint(x: 15, y: 20))
+    branch.stroke()
+    for point in [NSPoint(x: 15, y: 13), NSPoint(x: 15, y: 31), NSPoint(x: 27, y: 13)] {
+      let node = NSBezierPath(
+        ovalIn: NSRect(x: point.x - 2.3, y: point.y - 2.3, width: 4.6, height: 4.6))
+      node.lineWidth = 1.6
+      node.stroke()
+    }
+    drawBadge(count, color: count == 0 ? NSColor(calibratedWhite: 0.35, alpha: 1) : .systemOrange)
+  }
+}
 final class PetPanel: NSObject {
   let petPanel: FloatingPanel
-  let pet = PetView(frame: NSRect(x: 15, y: 42, width: 130, height: 130))
+  let pet = PetView(frame: NSRect(x: 31, y: 50, width: 130, height: 130))
   var cards: [FloatingPanel] = []
   var particlePanels: [FloatingPanel] = []
   var signature = ""
@@ -220,33 +250,31 @@ final class PetPanel: NSObject {
   var onSessions: (() -> Void)?
   var onNewChat: (() -> Void)?
   var trayExpanded = false
-  let toolbar = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 160, height: 34))
-  let bell = BellButton(frame: NSRect(x: 35, y: 0, width: 34, height: 34))
-  let gitCount = GitCounterButton(frame: NSRect(x: 106, y: 1, width: 52, height: 32))
+  let toolbar = TraySurface(frame: NSRect(x: 0, y: 0, width: 192, height: 44))
+  let bell = BellButton(frame: NSRect(x: 52, y: 0, width: 44, height: 44))
+  let gitCount = GitCounterButton(frame: NSRect(x: 140, y: 0, width: 44, height: 44))
   var commitsToday = 0
   override init() {
     petPanel = FloatingPanel(
-      contentRect: NSRect(x: 0, y: 0, width: 160, height: 180),
+      contentRect: NSRect(x: 0, y: 0, width: 192, height: 188),
       styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
     super.init()
     configure(petPanel)
     petPanel.title = "Arta pet"
-    let content = CompanionHoverView(frame: NSRect(x: 0, y: 0, width: 160, height: 180))
+    let content = CompanionHoverView(frame: NSRect(x: 0, y: 0, width: 192, height: 188))
     content.addSubview(pet)
     petPanel.contentView = content
     toolbar.isHidden = true
     content.onHover = { [weak self] hovering in self?.toolbar.isHidden = !hovering }
-    toolbar.material = .hudWindow
-    toolbar.state = .active
-    toolbar.blendingMode = .behindWindow
     toolbar.wantsLayer = true
-    toolbar.layer?.cornerRadius = 17
-    toolbar.layer?.borderWidth = 1
-    toolbar.layer?.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
+    toolbar.layer?.cornerRadius = 22
+    toolbar.layer?.masksToBounds = true
     toolbar.appearance = NSAppearance(named: .darkAqua)
     content.addSubview(toolbar)
-    let sessions = NSButton(frame: NSRect(x: 1, y: 1, width: 34, height: 32))
-    sessions.image = NSImage(systemSymbolName: "square.stack", accessibilityDescription: "Sessions")
+    let sessions = TrayButton(frame: NSRect(x: 8, y: 0, width: 44, height: 44))
+    sessions.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Sessions")?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+    sessions.imageScaling = .scaleNone
     sessions.title = ""
     sessions.isBordered = false
     sessions.contentTintColor = .white
@@ -254,13 +282,16 @@ final class PetPanel: NSObject {
     sessions.action = #selector(showSessions)
     sessions.toolTip = "Sessions & settings"
     toolbar.addSubview(sessions)
-    let divider = NSBox(frame: NSRect(x: 35, y: 8, width: 1, height: 18))
-    divider.boxType = .separator
-    toolbar.addSubview(divider)
+    for x: CGFloat in [52, 96, 140] {
+      let divider = NSView(frame: NSRect(x: x, y: 12, width: 1, height: 20))
+      divider.wantsLayer = true
+      divider.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
+      toolbar.addSubview(divider)
+    }
     bell.title = ""
     bell.image = NSImage(systemSymbolName: "bell", accessibilityDescription: "Notifications")
     bell.image = bell.image?.withSymbolConfiguration(
-      NSImage.SymbolConfiguration(pointSize: 18, weight: .regular))
+      NSImage.SymbolConfiguration(pointSize: 20, weight: .regular))
     bell.imageScaling = .scaleNone
     bell.isBordered = false
     bell.contentTintColor = .white
@@ -268,13 +299,11 @@ final class PetPanel: NSObject {
     bell.action = #selector(toggleTray)
     bell.setAccessibilityLabel("Show notifications")
     toolbar.addSubview(bell)
-    let rightDivider = NSBox(frame: NSRect(x: 104, y: 8, width: 1, height: 18))
-    rightDivider.boxType = .separator
-    toolbar.addSubview(rightDivider)
-    let newChat = NSButton(frame: NSRect(x: 70, y: 1, width: 34, height: 32))
+    let newChat = TrayButton(frame: NSRect(x: 96, y: 0, width: 44, height: 44))
     newChat.image = NSImage(
       systemSymbolName: "square.and.pencil", accessibilityDescription: "New chat")?
-      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 18, weight: .regular))
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+    newChat.imageScaling = .scaleNone
     newChat.title = ""
     newChat.isBordered = false
     newChat.contentTintColor = .white
@@ -293,7 +322,7 @@ final class PetPanel: NSObject {
     let point =
       defaults.object(forKey: "petX") != nil
       ? NSPoint(x: defaults.double(forKey: "petX"), y: defaults.double(forKey: "petY"))
-      : NSPoint(x: screen.maxX - 160, y: screen.minY + 45)
+      : NSPoint(x: screen.maxX - 192, y: screen.minY + 45)
     petPanel.setFrameOrigin(point)
     clamp()
     petPanel.orderFrontRegardless()
@@ -316,7 +345,7 @@ final class PetPanel: NSObject {
   }
   var availableCount: Int {
     let s = petPanel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
-    return max(1, Int((s.height - 205) / 86))
+    return max(1, Int((s.height - 213) / 86))
   }
   func clamp() {
     let s = petPanel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
@@ -393,10 +422,11 @@ final class PetPanel: NSObject {
     // A separate click-through window lets droplets rise beyond the pet's bounds.
     guard particlePanels.count < 3 else { return }
     let screen = petPanel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
-    let originY = petPanel.frame.minY + 110
+    let originY = petPanel.frame.minY + pet.frame.minY + 68
     let height = min(340, max(40, screen.maxY - originY))
     let overlay = FloatingPanel(
-      contentRect: NSRect(x: petPanel.frame.minX - 30, y: originY, width: 220, height: height),
+      contentRect: NSRect(
+        x: petPanel.frame.minX + pet.frame.minX - 45, y: originY, width: 220, height: height),
       styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
     configure(overlay)
     overlay.ignoresMouseEvents = true

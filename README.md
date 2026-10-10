@@ -105,6 +105,8 @@ open dist/Arta.app
 
 ## Make yourself at home
 
+![Arta’s compact hover bar with session, notification, new chat and Git controls](docs/media/arta-toolbar.png)
+
 | Action | What happens |
 | --- | --- |
 | Drag the pet | Move Arta around your screen |

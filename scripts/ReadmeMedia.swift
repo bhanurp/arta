@@ -90,6 +90,7 @@ extension Bundle { static var module: Bundle { .main } }
     tour.wantsLayer = true
     tour.layer?.backgroundColor =
       NSColor(calibratedRed: 0.065, green: 0.075, blue: 0.095, alpha: 1).cgColor
+    window.setContentSize(tour.frame.size)
     window.contentView = tour
     let heading = label(
       "Quiet while Claude works", 25, .white, NSRect(x: 30, y: 420, width: 590, height: 36))
@@ -146,6 +147,27 @@ extension Bundle { static var module: Bundle { .main } }
       particle.removeFromSuperview()
     }
     save(gitFrames, name: "arta-git.gif", delay: 0.095)
+    let trayScene = NSView(frame: NSRect(x: 0, y: 0, width: 520, height: 180))
+    trayScene.wantsLayer = true
+    trayScene.layer?.backgroundColor = NSColor(calibratedWhite: 0.09, alpha: 1).cgColor
+    window.setContentSize(trayScene.frame.size)
+    window.contentView = trayScene
+    let panel = PetPanel()
+    panel.petPanel.orderOut(nil)
+    panel.render([], state: 0, unread: 2, commits: 12)
+    panel.toolbar.removeFromSuperview()
+    panel.toolbar.isHidden = false
+    panel.toolbar.setFrameOrigin(NSPoint(x: 164, y: 66))
+    trayScene.addSubview(panel.toolbar)
+    trayScene.addSubview(
+      label(
+        "Your sessions, one quiet place.", 18, .white,
+        NSRect(x: 110, y: 129, width: 330, height: 28)))
+    trayScene.addSubview(
+      label(
+        "Sessions     ·     Alerts     ·     New chat     ·     Git", 11, .secondaryLabelColor,
+        NSRect(x: 125, y: 27, width: 310, height: 20)))
+    save([snapshot(trayScene)], name: "arta-toolbar.png")
     print("Rendered README media")
   }
 }

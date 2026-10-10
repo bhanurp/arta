@@ -5,12 +5,12 @@ public struct PanelLayout {
   public var pet: CGRect
   public var cards: [CGRect]
   public init(screen: CGRect, petOrigin: CGPoint, count: Int) {
-    let capacity = max(0, Int((screen.height - 205) / 86))
+    let capacity = max(0, Int((screen.height - 213) / 86))
     let actual = min(max(0, count), capacity)
     let total = CGFloat(actual) * 86
-    let x = min(max(petOrigin.x, screen.minX), screen.maxX - 160)
-    let y = min(max(petOrigin.y, screen.minY), screen.maxY - 180 - total - 8)
-    pet = CGRect(x: x, y: max(screen.minY, y), width: 160, height: 180)
+    let x = min(max(petOrigin.x, screen.minX), screen.maxX - 192)
+    let y = min(max(petOrigin.y, screen.minY), screen.maxY - 188 - total - 8)
+    pet = CGRect(x: x, y: max(screen.minY, y), width: 192, height: 188)
     let width = min(430, screen.width)
     let cardX = min(max(pet.maxX - width, screen.minX), screen.maxX - width)
     cards = []

@@ -84,3 +84,7 @@ Added a compact Git icon/count control alongside Sessions, Bell, and New Chat. C
 ## Git icon badge
 
 Replaced the small filled diamond and separate numeric label with a drawn branch icon and upper-right daily-count badge. Zero is muted, positive counts use orange, and large counts show 99+ while the tooltip/accessibility label retain the full count. Existing 36 tests, strict Swift lint, release build and installed signature verification passed.
+
+## Reference-inspired tray polish
+
+Refined the tray to a charcoal pill with a thin outline, four equal 44-point controls, consistent 20-point symbols, subtle separators and hover feedback. Notification badges use lilac; daily commits retain orange. Preserved the New Chat position to the right of the bell. Adjusted screen-bound layout for the 192 × 188 pet panel. All 36 tests passed after the layout changes; the final native tray preview was rendered and visually inspected, strict lint and release/signature checks passed. Refreshed README media with correctly sized preview canvases.
