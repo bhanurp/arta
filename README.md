@@ -15,7 +15,7 @@ A small desktop companion for your Claude Code sessions.
 
 **Keep working. Arta will let you know when Claude needs you.**
 
-[See it in action](#a-little-company-while-you-work) · [Get started](#get-started) · [Build from source](#build-from-source)
+[See it in action](#a-little-company-while-you-work) · [Get started](#get-started) · [Agent installation](#ask-your-agent-to-install-arta) · [Build from source](#build-from-source)
 
 </div>
 
@@ -65,6 +65,43 @@ Successful commits release an orange icon; pushes release a teal arrow. They dri
 Installation copies Arta into `~/Applications`, installs the tracking helper, and backs up and merges Claude Code’s hook settings. Existing hooks and unrelated settings are preserved. **Disable tracking** removes only Arta’s hook entries.
 
 > Development builds are ad-hoc signed, not notarized for public distribution. macOS may require approval to open a downloaded build. These are development artifacts, not a public release installer.
+
+## Ask your agent to install Arta
+
+Paste this into a coding agent that can run commands on your Mac:
+
+```text
+Install Arta from https://github.com/bhanurp/arta on this Mac.
+Read the README's “Agent installation checklist” and follow the existing
+installer. Check prerequisites and repository access, reuse an existing
+checkout if available, build and verify the app, then open it and complete
+Install & Start using UI tools if available. Preserve my Claude settings,
+existing hooks, and Arta data. Help me approve the macOS permissions myself.
+Verify a sample notification and a real Claude Code session event, then tell
+me where the app is installed and which checks passed or still need me.
+Do not create real Git commits or pushes just to test the visual effects.
+```
+
+### Agent installation checklist
+
+1. **Check the Mac and access.** Require macOS 14 or later. Check `sw_vers`, `uname -m`, `xcodebuild -version`, `swift --version`, and `claude --version`. Source builds are verified with Xcode 26.2 / Swift 6.2.3. If Xcode or Claude Code is missing, explain the prerequisite before starting a large installation. Claude must be signed in; let the user complete sign-in without requesting or displaying credentials.
+2. **Get the source.** This repository is currently private: the user's GitHub account must have access. If using GitHub CLI, check `gh auth status` and `gh repo view bhanurp/arta`. Reuse an existing checkout after inspecting its changes; otherwise clone into a user-chosen development folder. Do not reset or overwrite local work.
+3. **Build and verify.** Run the commands below from the repository root. Stop on a failed build or test and report the actual failure. A successful build creates `dist/Arta.app`; building alone does not install tracking.
+4. **Use the app's installer.** Open `dist/Arta.app`, then click **Install & Start** in Sessions & settings. An agent with native UI tools can click it; without those tools, ask the user to perform this one step. There is currently no supported headless installation flag. The installer copies the app to `~/Applications/Arta.app`, installs the stable helper, backs up and merges hooks, and starts the installed copy. Do not manually replace the entire Claude settings file or add duplicate hooks.
+5. **Let the user approve permissions.** The installed app requests Automation for Terminal/System Events and Accessibility for opening new Terminal tabs. The user must approve macOS privacy prompts. If declined, explain how to retry **Set up Terminal permissions…** from Arta's menu; do not change privacy databases or bypass macOS security controls. Development builds are not notarized, so opening a downloaded copy can also require user approval.
+6. **Verify the result.** Confirm the app runs from `~/Applications/Arta.app`. Use **Sample notification**, then click the bell to view it. Start or observe a real local Claude Code session and check that diagnostics report a received event. Existing sessions may need `/hooks` or a restart. Test **New Chat** after permission is granted; it should start Claude in the selected folder in a new Terminal tab. Distinguish successful installation from any unverified sign-in, permission, or session checks.
+
+```bash
+# From a new checkout, or an existing checkout whose local work is preserved:
+swift format lint --strict --recursive Sources Tests Package.swift
+swift test -Xswiftc -warnings-as-errors
+scripts/build-app.sh
+codesign --verify --deep --strict dist/Arta.app
+open dist/Arta.app
+# Finish with Install & Start in the app.
+```
+
+**Installation locations:** app at `~/Applications/Arta.app`; helper and state at `~/Library/Application Support/ClaudeCompanion/`; hooks in `~/.claude/settings.json`. If the user uses a custom `CLAUDE_CONFIG_DIR`, ensure Arta inherits that setting when launched and verify the intended settings file before enabling tracking. Keep existing state and configuration backups during upgrades. To undo tracking, use **Disable tracking** in Arta's menu.
 
 ## Make yourself at home
 
