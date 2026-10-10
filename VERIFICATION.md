@@ -76,3 +76,7 @@ Moved particles into temporary transparent, click-through windows so they can ri
 ## Arta repository and CI
 
 Renamed the visible product and build artifact to Arta, retaining internal storage/hook identifiers for compatibility. Added macOS GitHub Actions jobs for strict Swift formatting/lint, warnings-as-errors compilation, shell/plist validation, 33 tests with coverage, and signed development app packaging. Local formatting/lint, warning-free test build, all 33 tests, release packaging and signature verification passed with Xcode 26.2 / Swift 6.2.3.
+
+## Daily commit counter
+
+Added a compact Git icon/count control alongside Sessions, Bell, and New Chat. Counts successful commit commands observed through tracked Claude Code hooks, preserves the count across restarts, ignores duplicate tool requests and push events, and displays zero after local midnight without waiting for another event. Legacy state files remain compatible. Added tests for persistence, duplicate delivery, multiple commits, old state, late delivery and local-midnight reset; all 36 tests, strict formatting/lint and release build passed. It does not backfill commits made before tracking.

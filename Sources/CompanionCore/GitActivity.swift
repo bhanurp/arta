@@ -65,7 +65,7 @@ public enum GitActivity: String, Codable {
       guard !args.contains("--dry-run"), !args.contains("--help"), !args.contains("-h"),
         !(subcommand == "push" && args.contains("-n"))
       else { continue }
-      if let activity = GitActivity(rawValue: subcommand), !result.contains(activity) {
+      if let activity = GitActivity(rawValue: subcommand) {
         result.append(activity)
       }
     }

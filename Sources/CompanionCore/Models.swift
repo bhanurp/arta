@@ -47,9 +47,13 @@ public struct SessionStore: Codable {
   public var sessions: [String: SessionSnapshot] = [:]
   public var queue = NotificationQueue()
   public var seen: [UUID] = []
+  public var dailyCommits: DailyCommitCounter?
   public init() {}
   @discardableResult public mutating func apply(_ event: SessionEvent) -> Bool {
     guard !seen.contains(event.id) else { return false }
+    var counter = dailyCommits ?? DailyCommitCounter()
+    counter.record(event)
+    dailyCommits = counter
     seen.append(event.id)
     seen = Array(seen.suffix(2000))
     let old = sessions[event.sessionID]

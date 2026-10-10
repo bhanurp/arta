@@ -182,8 +182,10 @@ final class PetPanel: NSObject {
   var onSessions: (() -> Void)?
   var onNewChat: (() -> Void)?
   var trayExpanded = false
-  let toolbar = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 160, height: 38))
-  let bell = BellButton(frame: NSRect(x: 56, y: 1, width: 48, height: 36))
+  let toolbar = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 160, height: 34))
+  let bell = BellButton(frame: NSRect(x: 35, y: 0, width: 34, height: 34))
+  let gitCount = NSButton(frame: NSRect(x: 106, y: 1, width: 52, height: 32))
+  var commitsToday = 0
   override init() {
     petPanel = FloatingPanel(
       contentRect: NSRect(x: 0, y: 0, width: 160, height: 180),
@@ -200,12 +202,12 @@ final class PetPanel: NSObject {
     toolbar.state = .active
     toolbar.blendingMode = .behindWindow
     toolbar.wantsLayer = true
-    toolbar.layer?.cornerRadius = 19
+    toolbar.layer?.cornerRadius = 17
     toolbar.layer?.borderWidth = 1
     toolbar.layer?.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
     toolbar.appearance = NSAppearance(named: .darkAqua)
     content.addSubview(toolbar)
-    let sessions = NSButton(frame: NSRect(x: 4, y: 3, width: 48, height: 32))
+    let sessions = NSButton(frame: NSRect(x: 1, y: 1, width: 34, height: 32))
     sessions.image = NSImage(systemSymbolName: "square.stack", accessibilityDescription: "Sessions")
     sessions.title = ""
     sessions.isBordered = false
@@ -214,13 +216,13 @@ final class PetPanel: NSObject {
     sessions.action = #selector(showSessions)
     sessions.toolTip = "Sessions & settings"
     toolbar.addSubview(sessions)
-    let divider = NSBox(frame: NSRect(x: 53, y: 8, width: 1, height: 22))
+    let divider = NSBox(frame: NSRect(x: 35, y: 8, width: 1, height: 18))
     divider.boxType = .separator
     toolbar.addSubview(divider)
     bell.title = ""
     bell.image = NSImage(systemSymbolName: "bell", accessibilityDescription: "Notifications")
     bell.image = bell.image?.withSymbolConfiguration(
-      NSImage.SymbolConfiguration(pointSize: 21, weight: .regular))
+      NSImage.SymbolConfiguration(pointSize: 18, weight: .regular))
     bell.imageScaling = .scaleNone
     bell.isBordered = false
     bell.contentTintColor = .white
@@ -228,13 +230,13 @@ final class PetPanel: NSObject {
     bell.action = #selector(toggleTray)
     bell.setAccessibilityLabel("Show notifications")
     toolbar.addSubview(bell)
-    let rightDivider = NSBox(frame: NSRect(x: 106, y: 8, width: 1, height: 22))
+    let rightDivider = NSBox(frame: NSRect(x: 104, y: 8, width: 1, height: 18))
     rightDivider.boxType = .separator
     toolbar.addSubview(rightDivider)
-    let newChat = NSButton(frame: NSRect(x: 109, y: 3, width: 47, height: 32))
+    let newChat = NSButton(frame: NSRect(x: 70, y: 1, width: 34, height: 32))
     newChat.image = NSImage(
       systemSymbolName: "square.and.pencil", accessibilityDescription: "New chat")?
-      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 21, weight: .regular))
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 18, weight: .regular))
     newChat.title = ""
     newChat.isBordered = false
     newChat.contentTintColor = .white
@@ -243,6 +245,37 @@ final class PetPanel: NSObject {
     newChat.toolTip = "New Claude Code chat…"
     newChat.setAccessibilityLabel("New chat")
     toolbar.addSubview(newChat)
+    gitCount.isBordered = false
+    gitCount.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+    gitCount.contentTintColor = .white
+    gitCount.imagePosition = .imageLeading
+    gitCount.image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+      NSColor.systemOrange.setFill()
+      let diamond = NSBezierPath()
+      diamond.move(to: NSPoint(x: 9, y: 0))
+      diamond.line(to: NSPoint(x: 18, y: 9))
+      diamond.line(to: NSPoint(x: 9, y: 18))
+      diamond.line(to: NSPoint(x: 0, y: 9))
+      diamond.close()
+      diamond.fill()
+      NSColor.white.setStroke()
+      let branch = NSBezierPath()
+      branch.lineWidth = 1.3
+      branch.move(to: NSPoint(x: 6, y: 12))
+      branch.line(to: NSPoint(x: 12, y: 6))
+      branch.move(to: NSPoint(x: 8, y: 10))
+      branch.line(to: NSPoint(x: 8, y: 5))
+      branch.stroke()
+      NSColor.white.setFill()
+      for point in [NSPoint(x: 6, y: 12), NSPoint(x: 12, y: 6), NSPoint(x: 8, y: 5)] {
+        NSBezierPath(ovalIn: NSRect(x: point.x - 1.4, y: point.y - 1.4, width: 2.8, height: 2.8))
+          .fill()
+      }
+      return true
+    }
+    gitCount.target = self
+    gitCount.action = #selector(showCommitsToday)
+    toolbar.addSubview(gitCount)
     let defaults = UserDefaults.standard
     let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
     let point =
@@ -288,7 +321,19 @@ final class PetPanel: NSObject {
     petPanel.setFrame(layout.pet, display: true)
     for (p, rect) in zip(cards, layout.cards) { p.setFrame(rect, display: true) }
   }
-  func render(_ notices: [Notice], state: Int, unread: Int) {
+  @objc func showCommitsToday() {
+    let alert = NSAlert()
+    alert.messageText = "\(commitsToday) commits today"
+    alert.informativeText =
+      "Successful commits observed in tracked Claude Code sessions today. Resets at midnight in your local time zone. Commits made before tracking was enabled are not included."
+    NSApp.activate(ignoringOtherApps: true)
+    alert.runModal()
+  }
+  func render(_ notices: [Notice], state: Int, unread: Int, commits: Int = 0) {
+    commitsToday = commits
+    gitCount.title = commits > 99 ? "99+" : String(commits)
+    gitCount.toolTip = "\(commits) commits today · resets at local midnight"
+    gitCount.setAccessibilityLabel("\(commits) Git commits today")
     if pet.row != state {
       pet.attentionStarted = Date()
       pet.frameIndex = 0

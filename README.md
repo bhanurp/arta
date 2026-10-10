@@ -29,6 +29,7 @@ Arta floats above your other apps and keeps an eye on your local Claude Code ses
 
 ### The right nudge, at the right time
 
+- **Today’s commits at a glance.** The compact hover bar shows a Git icon and today’s successful commits from tracked sessions. The count survives restarts and resets at local midnight; pushes do not increment it.
 - **One place for your sessions.** See which sessions are working or waiting for you.
 - **Notifications that make room.** Two cards appear by default. Choose your own limit; dismiss one to bring the next queued message into view.
 - **Quiet by default.** The button bar appears on hover. Completion and input requests can open the notification tray; routine activity stays out of the way.
