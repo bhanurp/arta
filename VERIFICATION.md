@@ -92,3 +92,7 @@ Refined the tray to a charcoal pill with a thin outline, four equal 44-point con
 ## Working activity bar
 
 Added a small green indeterminate indicator above the pet while any tracked session is working. It hides on hover and while actual notification cards are shown, stops animating when hidden, and stays static under Reduce Motion. Existing panel bounds contain the indicator. All 37 tests, strict Swift lint, release build and installed signature verification passed. Physical animation playback was not visually verified for this follow-up.
+
+## Monochrome Git diamond
+
+Replaced the branch outline with a white Git-style diamond and dark internal branch, retaining the orange count badge. Rendered and visually inspected the native tray preview. Strict Swift lint, release build, media rendering and installed signature verification passed. No counter logic changed.

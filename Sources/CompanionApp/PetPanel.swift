@@ -218,22 +218,28 @@ final class GitCounterButton: TrayButton {
   var count = 0 { didSet { needsDisplay = true } }
   override func draw(_ dirtyRect: NSRect) {
     super.draw(dirtyRect)
-    NSColor.white.withAlphaComponent(0.92).setStroke()
+    // Monochrome Git diamond with a contrasting branch, drawn sharply at tray size.
+    NSColor.white.withAlphaComponent(0.92).setFill()
+    let diamond = NSBezierPath()
+    diamond.move(to: NSPoint(x: 22, y: 10))
+    diamond.line(to: NSPoint(x: 34, y: 22))
+    diamond.line(to: NSPoint(x: 22, y: 34))
+    diamond.line(to: NSPoint(x: 10, y: 22))
+    diamond.close()
+    diamond.fill()
+    let ink = NSColor(calibratedWhite: 0.15, alpha: 1)
+    ink.setStroke()
     let branch = NSBezierPath()
-    branch.lineWidth = 1.6
+    branch.lineWidth = 1.8
     branch.lineCapStyle = .round
-    branch.move(to: NSPoint(x: 15, y: 15))
-    branch.line(to: NSPoint(x: 15, y: 29))
-    branch.move(to: NSPoint(x: 27, y: 15))
-    branch.curve(
-      to: NSPoint(x: 15, y: 26), controlPoint1: NSPoint(x: 27, y: 24),
-      controlPoint2: NSPoint(x: 15, y: 20))
+    branch.move(to: NSPoint(x: 17, y: 15))
+    branch.line(to: NSPoint(x: 28, y: 26))
+    branch.move(to: NSPoint(x: 21, y: 19))
+    branch.line(to: NSPoint(x: 21, y: 28))
     branch.stroke()
-    for point in [NSPoint(x: 15, y: 13), NSPoint(x: 15, y: 31), NSPoint(x: 27, y: 13)] {
-      let node = NSBezierPath(
-        ovalIn: NSRect(x: point.x - 2.3, y: point.y - 2.3, width: 4.6, height: 4.6))
-      node.lineWidth = 1.6
-      node.stroke()
+    ink.setFill()
+    for point in [NSPoint(x: 21, y: 19), NSPoint(x: 28, y: 26), NSPoint(x: 21, y: 28)] {
+      NSBezierPath(ovalIn: NSRect(x: point.x - 2, y: point.y - 2, width: 4, height: 4)).fill()
     }
     drawBadge(count, color: count == 0 ? NSColor(calibratedWhite: 0.35, alpha: 1) : .systemOrange)
   }

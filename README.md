@@ -29,7 +29,7 @@ Arta floats above your other apps and keeps an eye on your local Claude Code ses
 
 ### The right nudge, at the right time
 
-- **Today’s commits at a glance.** The compact hover bar shows a Git branch icon with a badge for today’s successful commits from tracked sessions. The count survives restarts and resets at local midnight; pushes do not increment it.
+- **Today’s commits at a glance.** The compact hover bar shows a monochrome Git diamond with a badge for today’s successful commits from tracked sessions. The count survives restarts and resets at local midnight; pushes do not increment it.
 - **One place for your sessions.** See which sessions are working or waiting for you.
 - **Notifications that make room.** Two cards appear by default. Choose your own limit; dismiss one to bring the next queued message into view.
 - **A subtle working signal.** A small green activity bar above the pet shows when Claude is working. It disappears on hover or while notification cards are visible; it indicates activity, not a completion percentage.
