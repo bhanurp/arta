@@ -1,7 +1,11 @@
 name: Publish signed update
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable release tag, for example v0.1.2
+        required: true
+        type: string
 permissions:
   contents: write
 concurrency:
@@ -9,17 +13,16 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
-    if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
     runs-on: macos-15
     timeout-minutes: 20
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
       ARTA_TARGET_ARCH: arm64
-      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      RELEASE_TAG: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Validate version
         run: |
@@ -40,9 +43,11 @@ jobs:
         run: |
           test -n "$SPARKLE_PRIVATE_KEY"
           printf '%s' "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast --ed-key-file - --maximum-deltas 0 --download-url-prefix "https://github.com/bhanurp/arta/releases/download/$RELEASE_TAG/" dist/updates
-      - name: Upload archive, then publish feed
+      - name: Upload draft assets, publish release, then publish feed
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          gh release create "$RELEASE_TAG" --repo bhanurp/arta --target "$GITHUB_SHA" --draft --title "Arta $RELEASE_TAG" --generate-notes
           gh release upload "$RELEASE_TAG" "dist/updates/Arta-$RELEASE_TAG-macos-arm64.zip" --repo bhanurp/arta
+          gh release edit "$RELEASE_TAG" --repo bhanurp/arta --draft=false --latest
           /usr/bin/python3 scripts/publish-appcast.py dist/updates/appcast.xml

@@ -59,7 +59,7 @@ Successful commits release an orange icon; pushes release a teal arrow. They dri
 
 **Requires macOS 14 or later and an installed, signed-in copy of Claude Code.**
 
-1. Download **Arta-v0.1.1-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
+1. Download **Arta-v0.1.2-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
 2. Extract the archive, open **Arta.app**, and click **Install & Start**.
 3. Approve macOS Automation and Accessibility requests to enable new Terminal tabs. Permission setup can be retried from the menu bar.
 4. Start a Claude Code session. Arta picks up its events automatically.
@@ -193,10 +193,10 @@ Use **Check for Updates…** in the menu bar for an immediate check, or turn off
 
 ### Publishing an update
 
-1. Commit and tag the intended source with a stable `vMAJOR.MINOR.PATCH` version (each component below 1000).
-2. Publish a GitHub release for that tag. The **Publish signed update** workflow runs tests, builds the Apple Silicon app, signs the update archive, and uploads it to that release.
-3. After the archive is available, the workflow updates `updates/appcast.xml` on `main`. Drafts and prereleases do not enter this feed. Older releases cannot replace a newer feed entry.
+1. Commit the intended source and update its version in `Resources/Info.plist`.
+2. Run **Actions → Publish signed update → Run workflow**, selecting the source branch and entering an unused stable tag such as `v0.1.2` (each version component below 1000). The workflow runs tests, builds the Apple Silicon app, and signs the archive.
+3. The workflow creates a draft release at the tested commit, uploads its archive, publishes it, then updates `updates/appcast.xml` on `main`. GitHub locks published assets, so do not publish the release manually before upload. Older versions cannot replace a newer feed entry.
 
 The workflow requires the repository Actions secret `SPARKLE_PRIVATE_KEY`. The matching private key is kept in the maintainer’s macOS Keychain under Sparkle account `arta`; the public key is in `Resources/Info.plist`. Never commit the private key. Keep a secure backup: losing it prevents updates to existing installs. Changes to the archive invalidate its signature, so do not replace published assets. If upload succeeded but feed publication failed, rerun only the feed publication step with the original signed appcast; do not overwrite the archive.
 
-Automatic updates are included starting with v0.1.1. Archive signing is separate from Apple Developer ID signing: these builds remain ad-hoc signed and unnotarized.
+Automatic updates ship starting with v0.1.2. The v0.1.1 release was published without an asset and is not offered by the update feed. Archive signing is separate from Apple Developer ID signing: these builds remain ad-hoc signed and unnotarized.
