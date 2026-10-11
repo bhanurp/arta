@@ -86,3 +86,14 @@ extension NotificationQueue {
     fill()
   }
 }
+
+extension NotificationQueue {
+  public mutating func updateMessage(id: UUID, message: String) {
+    for i in visible.indices where visible[i].id == id {
+      visible[i].message = message
+      visible[i].remaining = 20
+    }
+    for i in pending.indices where pending[i].id == id { pending[i].message = message }
+    for i in history.indices where history[i].id == id { history[i].message = message }
+  }
+}

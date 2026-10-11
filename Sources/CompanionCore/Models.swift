@@ -11,6 +11,7 @@ public struct SessionEvent: Codable {
   public var project: String
   public var message: String?
   public var host: String?
+  public var tty: String?
   public var pid: Int32?
   public var processStart: String?
   public var transcript: String?
@@ -34,6 +35,7 @@ public struct SessionSnapshot: Codable, Identifiable {
   public var updated: Date
   public var message: String?
   public var host: String?
+  public var tty: String?
   public var pid: Int32?
   public var processStart: String?
   public var transcript: String?
@@ -58,10 +60,13 @@ public struct SessionStore: Codable {
     seen = Array(seen.suffix(2000))
     let old = sessions[event.sessionID]
     guard old == nil || event.time >= old!.updated else { return false }
+    let sameProcess =
+      event.pid == nil || (event.pid == old?.pid && event.processStart == old?.processStart)
     let snapshot = SessionSnapshot(
       id: event.sessionID, state: event.kind, project: event.project, updated: event.time,
-      message: event.message ?? old?.message, host: event.host ?? old?.host,
-      pid: event.pid ?? old?.pid, processStart: event.processStart ?? old?.processStart,
+      message: event.message ?? old?.message, host: event.host ?? (sameProcess ? old?.host : nil),
+      tty: event.tty ?? (sameProcess ? old?.tty : nil), pid: event.pid ?? old?.pid,
+      processStart: event.processStart ?? old?.processStart,
       transcript: event.transcript ?? old?.transcript,
       requestID: event.kind == .needsInput ? (event.requestID ?? old?.requestID) : nil)
     sessions[event.sessionID] = snapshot
@@ -70,7 +75,7 @@ public struct SessionStore: Codable {
       event.kind == .needsInput && old?.state == .needsInput
       && (event.requestID == nil || event.requestID == old?.requestID)
     if !sameRequest && [.finished, .needsInput, .failed].contains(event.kind)
-      && !(old?.state == event.kind && old?.message == event.message)
+      && !(old?.state == event.kind && (event.kind == .finished || old?.message == event.message))
     {
       queue.enqueue(
         Notice(
@@ -95,6 +100,8 @@ extension SessionStore {
         current.pid = live.pid
         current.processStart = live.processStart
         if resumed {
+          current.tty = nil
+          current.host = nil
           current.state = .unknown
           current.updated = .distantPast
           current.message = "Session resumed. Waiting for current activity."
@@ -116,5 +123,20 @@ extension SessionStore {
       }
       sessions[id] = s
     }
+  }
+}
+
+extension SessionStore {
+  /// Hooks own transient working states, but must not disable terminal-event recovery.
+  @discardableResult public mutating func applyTranscript(_ event: SessionEvent, hasHooks: Bool)
+    -> Bool
+  {
+    if hasHooks && ![.finished, .needsInput, .failed].contains(event.kind) { return false }
+    if sessions[event.sessionID]?.state == event.kind
+      && [.finished, .needsInput, .failed].contains(event.kind)
+    {
+      return false
+    }
+    return apply(event)
   }
 }

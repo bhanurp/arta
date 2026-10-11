@@ -3,15 +3,18 @@ import Foundation
 public struct TranscriptObserver {
   private var offsets: [String: UInt64] = [:]
   public init() {}
-  public mutating func read(url: URL, sessionID: String, project: String) throws -> [SessionEvent] {
+  public mutating func read(url: URL, sessionID: String, project: String, since: Date? = nil) throws
+    -> [SessionEvent]
+  {
     let f = try FileHandle(forReadingFrom: url)
     defer { try? f.close() }
     let size = try f.seekToEnd()
     let key = url.path
-    guard let previous = offsets[key] else {
+    if offsets[key] == nil && since == nil {
       offsets[key] = size
       return []
     }
+    let previous = offsets[key] ?? (size > 262144 ? size - 262144 : 0)
     guard size > previous else {
       offsets[key] = size
       return []
@@ -31,6 +34,7 @@ public struct TranscriptObserver {
         let type = p["type"] as? String, let timestamp = p["timestamp"] as? String,
         let time = formatter.date(from: timestamp)
       else { continue }
+      if let since, time <= since { continue }
       let message = p["message"] as? [String: Any]
       let content = message?["content"] as? [[String: Any]] ?? []
       let text = content.compactMap { $0["text"] as? String }.joined(separator: "\n")

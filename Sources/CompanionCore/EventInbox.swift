@@ -67,6 +67,24 @@ public struct EventInbox {
 
 }
 public enum ProcessIdentity {
+  public static func tty(pid: Int32) -> String? {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/ps")
+    process.arguments = ["-p", String(pid), "-o", "tty="]
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = FileHandle.nullDevice
+    do {
+      try process.run()
+      let value = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      process.waitUntilExit()
+      guard value.hasPrefix("ttys"), value.allSatisfy({ $0.isLetter || $0.isNumber }) else {
+        return nil
+      }
+      return "/dev/" + value
+    } catch { return nil }
+  }
   public static func start(pid: Int32) -> String? {
     let p = Process()
     p.executableURL = URL(fileURLWithPath: "/bin/ps")

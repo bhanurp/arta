@@ -9,6 +9,7 @@ do {
     if let pid = event.pid { event.processStart = ProcessIdentity.start(pid: pid) }
     let env = ProcessInfo.processInfo.environment
     event.host = env["__CFBundleIdentifier"] ?? env["TERM_PROGRAM"]
+    if let pid = event.pid { event.tty = ProcessIdentity.tty(pid: pid) }
     try EventInbox(directory: AppPaths.root.appendingPathComponent("inbox")).write(event)
   }
 } catch {}

@@ -3,6 +3,7 @@ import CompanionCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
   let updates = AppUpdates()
+  let navigator = SessionNavigator()
   var observer = TranscriptObserver()
   var observedPaths: [String: URL] = [:]
   var hookSessions = Set<String>()
@@ -206,10 +207,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if let url = observedPaths[session.id],
           let updates = try? observer.read(
-            url: url, sessionID: session.id, project: session.project)
+            url: url, sessionID: session.id, project: session.project,
+            since: session.state == .working ? session.updated : nil)
         {
-          for event in updates where !hookSessions.contains(session.id) || event.kind == .failed {
-            if store.apply(event) { panel.revealForAttention() }
+          for event in updates {
+            if store.applyTranscript(event, hasHooks: hookSessions.contains(session.id)) {
+              panel.revealForAttention()
+            }
           }
         }
       }
@@ -285,6 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       contentRect: NSRect(x: 0, y: 0, width: 650, height: 570),
       styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
     w.title = "Arta"
+    w.appearance = NSAppearance(named: .darkAqua)
     w.isReleasedWhenClosed = false
     w.minSize = NSSize(width: 650, height: 570)
     w.center()
@@ -331,12 +336,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         "Local tracking only. Click a session link to open its source app. Your messages stay on this Mac."
     )
     note.textColor = .secondaryLabelColor
-    note.frame = NSRect(x: 24, y: 14, width: 600, height: 36)
+    note.frame = NSRect(x: 24, y: 14, width: 480, height: 36)
     view.addSubview(note)
+    let close = NSButton(title: "Close", target: self, action: #selector(closeSessions))
+    close.bezelStyle = .rounded
+    close.keyEquivalent = "\u{1b}"
+    close.frame = NSRect(x: 530, y: 16, width: 96, height: 30)
+    view.addSubview(close)
     updateList()
     w.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
   }
+  @objc func closeSessions() { window?.close() }
   func updateList() {
     let text = NSMutableAttributedString()
     func append(_ s: String, bold: Bool = false) {
@@ -463,34 +474,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     refresh()
   }
   func openNotice(_ n: Notice) {
-    store.queue.dismiss(id: n.id)
-    let alert = NSAlert()
-    alert.messageText = n.title
-    alert.informativeText = n.message
-    alert.addButton(withTitle: "Open source app")
-    alert.addButton(withTitle: "Close")
-    NSApp.activate(ignoringOtherApps: true)
-    if alert.runModal() == .alertFirstButtonReturn { openSession(n.sessionID) }
-    refresh()
-  }
-  func openSession(_ id: String) {
-    guard let s = store.sessions[id] else { return }
-    let mapping = [
-      "Apple_Terminal": "com.apple.Terminal", "iTerm.app": "com.googlecode.iterm2",
-      "vscode": "com.microsoft.VSCode", "cursor": "com.todesktop.230313mzl4w4u92",
-    ]
-    if let host = s.host,
-      let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: mapping[host] ?? host)
-    {
-      NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
-      diagnostic =
-        "Opened the source application. Exact tab selection is not supported yet. Session: \(id)"
-    } else {
-      diagnostic = "Source app unavailable. Project: \(s.project) · Session: \(id)"
-      showSessions()
+    guard n.sessionID != "sample" else {
+      store.queue.dismiss(id: n.id)
+      refresh()
+      return
     }
-    updateList()
+    openSession(n.sessionID) { [weak self] opened, message in
+      guard let self else { return }
+      if opened {
+        self.store.queue.dismiss(id: n.id)
+      } else {
+        self.store.queue.updateMessage(id: n.id, message: message)
+      }
+      self.refresh()
+    }
   }
+  func openSession(_ id: String, completion: ((Bool, String) -> Void)? = nil) {
+    guard let session = store.sessions[id] else {
+      completion?(false, "This session is no longer available.")
+      return
+    }
+    let matching = store.sessions.values.filter {
+      $0.project == session.project && ![.closed, .disconnected].contains($0.state)
+        && SessionNavigation.bundleID(for: $0.host) == SessionNavigation.bundleID(for: session.host)
+    }
+    navigator.open(session, allowProjectMatch: matching.count == 1) { [weak self] opened, message in
+      self?.diagnostic = message
+      self?.updateList()
+      completion?(opened, message)
+    }
+  }
+
 }
 extension AppDelegate: NSTextViewDelegate {
   func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {

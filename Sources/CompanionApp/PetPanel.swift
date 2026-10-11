@@ -454,7 +454,7 @@ final class PetPanel: NSObject {
     pet.needsDisplay = true
     bell.unread = unread
     bell.toolTip = "\(unread) unread notifications — click to \(trayExpanded ? "hide":"show")"
-    let key = notices.map { $0.id.uuidString }.joined()
+    let key = notices.map { $0.id.uuidString + $0.message }.joined()
     guard key != signature else { return }
     signature = key
     for panel in cards { panel.close() }

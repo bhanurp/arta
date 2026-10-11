@@ -19,7 +19,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Arta uses Terminal and System Events to open a new Claude Code chat in a new Terminal tab.</string>
+	<string>Arta uses terminal automation to bring your Claude Code session to the front and to open new chats in Terminal.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>SUFeedURL</key>

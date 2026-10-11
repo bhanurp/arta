@@ -116,7 +116,7 @@ open dist/Arta.app
 | Click the pet or Sessions | Open sessions and settings |
 | Click the bell | Show or hide notification cards |
 | Click New Chat | Choose a folder and open a fresh Claude Code session |
-| Click a notification | Read its message and optionally open the source app |
+| Click a notification | Go directly to the source session; no intermediate dialog |
 | Change Visible messages | Set how many notification cards appear at once |
 | Use the menu bar | Show/hide Arta, preview a notification, set up permissions, or disable tracking |
 
@@ -137,7 +137,9 @@ The internal `ClaudeCompanion` identifiers remain for compatibility with earlier
 
 **Local Claude Code sessions.** Arta discovers running sessions from local metadata and observes new transcript records as a fallback. Sessions started before installation may need `/hooks` or a restart to load the hooks. Unknown status is shown when there is not enough evidence; old completions do not generate startup notifications.
 
-Claude Desktop conversations, SSH, containers, and cloud sessions are not tracked yet. Disabled hooks, project-managed settings, and `claude --bare` may prevent delivery. Opening a notification’s source activates its app; it does not guarantee navigation to an exact terminal tab.
+Claude Desktop conversations, SSH, containers, and cloud sessions are not tracked yet. Disabled hooks, project-managed settings, and `claude --bare` may prevent delivery. Clicking a bubble goes directly to its source. Terminal and iTerm2 use the live Claude process’s terminal identity to select its tab/pane. Ghostty 1.3.x exposes project folders but not terminal-device identity: Arta selects a pane only if exactly one pane and one tracked session match that folder. Other hosts, ambiguous matches, and missing Automation permission fall back to activating the source app and leave an explanation in the bubble. Arta never guesses between same-folder Ghostty sessions. macOS may ask to allow Arta to control your terminal on the first click. No input is typed into the terminal. Finished or disconnected sessions cannot reliably reopen an original pane.
+
+Transcript completion and question events remain a fallback even after hooks have been received, so a missed later hook does not permanently suppress notifications. Historical transcript contents are skipped at startup; tracking must be enabled and the pet visible for automatic popups.
 
 Git effects recognize simple `git commit` and `git push` calls, including `git -C`/`-c` and successful `cd`/`git add` chains joined with `&&`. Scripts, aliases, complex shell expressions, dry runs, failed calls, and interrupted calls are skipped.
 
