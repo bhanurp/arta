@@ -9,8 +9,7 @@
     "waiting",
     "finished"
   ],
-  "source": "Original generated artwork, October 10 2026",
+  "source": "Original illustrated ember character, generated with the built-in image tool, October 11 2026",
   "menuIcon": "menu-icon.pdf",
-  "interpolation": "pixel",
-  "workingOverlay": "laptop"
+  "interpolation": "smooth"
 }

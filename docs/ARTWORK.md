@@ -1,0 +1,13 @@
+# Desktop illustration
+
+Generated with the built-in image-generation tool on October 11, 2026. The original sprite sheet was used only as an identity and palette reference. The final sheet is `Sources/CompanionApp/Resources/Pet/sprites.png`, with smooth interpolation and four state rows. The laptop is part of the working artwork; no extra laptop overlay is applied.
+
+## Initial prompt
+
+Use case: stylized-concept. Production transparent sprite sheet for Arta, an original premium macOS desktop companion. Reinvent the attached orange mascot as a refined illustrated ember spirit: small sculptural apricot-orange body, softly tapered flame tuft with asymmetry, warm ivory face, tiny deep-brown expressive eyes, subtle warm cheek tint, compact hands and feet. Beautiful contemporary editorial illustration with smooth crisp anti-aliased edges, restrained dimensional shading, luminous rich orange/coral palette, excellent silhouette at 130px. NOT pixel art, NOT thick black outlines, NOT a robot, NOT an imitation of another assistant mascot. Transparent background, no ground, no text, no labels, no grid lines. EXACT 4 by 4 uniform grid of 16 animation frames, square canvas, same character size and same foot baseline within each cell, fully inside every cell with 12% transparent padding. Each row is one four-frame gentle loop: ROW1 idle calm breathing/blink, first frame neutral restful pose. ROW2 quietly seated behind an elegant small charcoal laptop, consistent laptop all four frames, subtle typing. ROW3 politely asking for attention, gently raised hand, curious expression, restrained wave. ROW4 delighted friendly small dance/wave, four coherent movement phases, expressive but tasteful. Keep identity and lighting absolutely consistent across all 16 cells. Attached old sprite is identity/color reference only; redesign its quality completely. Deliver the sprite sheet ready for equal rectangular slicing, genuine alpha transparency.
+
+## Refinement prompt
+
+Polish this production sprite sheet. Preserve the character design and exact four-by-four pose layout. Remove all stray colored flecks and detached pixels from the empty space and outlines. Genuine transparent alpha background outside characters and laptops. Remove the Apple logo from laptop lids; plain charcoal laptops only. Smooth illustrated edges, no decorative marks, consistent camera and scale. Preserve all 16 poses in a uniform four-by-four grid with transparent padding.
+
+The generated sheet was inspected in native AppKit previews at desktop display size. Source artwork is preserved as generated; frame extraction uses proportional cell coordinates to accommodate dimensions not divisible by four.

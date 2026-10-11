@@ -72,13 +72,14 @@ final class PetView: NSView {
     guard let sheet, let cg = sheet.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
       return
     }
-    let w = cg.width / avatar.manifest.columns
-    let h = cg.height / avatar.manifest.rows
+    let w = CGFloat(cg.width) / CGFloat(avatar.manifest.columns)
+    let h = CGFloat(cg.height) / CGFloat(avatar.manifest.rows)
     let rowName = ["idle", "working", "waiting", "finished"][displayRow]
     let spriteRow = avatar.manifest.states.firstIndex(of: rowName) ?? 0
     if let crop = cg.cropping(
       to: CGRect(
-        x: (frameIndex % avatar.manifest.framesPerState) * w, y: spriteRow * h, width: w, height: h)
+        x: CGFloat(frameIndex % avatar.manifest.framesPerState) * w, y: CGFloat(spriteRow) * h,
+        width: w, height: h)
     ) {
       NSGraphicsContext.current?.imageInterpolation =
         avatar.manifest.interpolation == "smooth" ? .high : .none

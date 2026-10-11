@@ -4,7 +4,7 @@
 
 ### Quiet company. Timely nudges.
 
-A small desktop companion for your Claude Code sessions.
+An illustrated desktop companion for your Claude Code sessions.
 
 [![CI](https://github.com/bhanurp/arta/actions/workflows/ci.yml/badge.svg)](https://github.com/bhanurp/arta/actions/workflows/ci.yml)
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-222222?logo=apple)
@@ -180,3 +180,5 @@ See [VERIFICATION.md](VERIFICATION.md) for verification history and known limits
 ## Avatar-ready artwork
 
 The menu bar uses a dedicated vector face icon for crisp Retina rendering. Avatar artwork is separate from session tracking: sprite layout, animation timing, rendering style, and menu icon are configured in a manifest. See [Creating avatars](docs/AVATARS.md) for the asset contract. The current build bundles one avatar; an in-app avatar picker is not included yet.
+
+The desktop character uses original smoothly shaded illustration with four pose sets, including its own laptop working pose. See [artwork notes and generation prompts](docs/ARTWORK.md).

@@ -104,3 +104,7 @@ Replaced the variable-width session text with a square status item using Arta's 
 ## Crisp menu artwork and avatar assets
 
 Replaced the shrunken pixel sprite menu icon with an original dedicated vector PDF face. Visually inspected its rendered colors and silhouette. Added validated avatar manifests and a shared asset loader: menu art, sprite dimensions/state-row mapping, frame count/timing, interpolation, and optional laptop overlay no longer require changes to tracking logic. Legacy/missing-icon fallback remains available. Added tests for legacy and alternate manifests, rejected paths/layouts/timing, and alternate animation frame counts. All 39 tests, strict Swift lint, release build, README media rendering, and installed code-signature verification passed. One avatar remains bundled; no runtime gallery/selector is claimed.
+
+## Illustrated desktop avatar
+
+Replaced pixel art with a newly generated, smoothly shaded ember illustration sheet. The four state rows include their own laptop working pose. Enabled smooth interpolation, removed the redundant laptop overlay, and used proportional cell coordinates for the generated sheet's dimensions. Inspected native overview and notification previews; regenerated README media. All 39 tests, strict lint, release build and installed signature verification passed. Artwork prompts and provenance are documented in docs/ARTWORK.md. The published v0.1.0 archive is unchanged.

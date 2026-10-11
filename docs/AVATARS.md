@@ -21,7 +21,7 @@ An avatar contains:
 }
 ```
 
-The four named states are required, but their row order and the number of frames may change. Use `smooth` interpolation for illustrated artwork, or `pixel` for pixel art. Omit `workingOverlay` if the avatar's working frames already depict its working pose. The `laptop` option is an app-drawn overlay for the current character.
+The four named states are required, but their row order and the number of frames may change. Use `smooth` interpolation for illustrated artwork, or `pixel` for pixel art. Omit `workingOverlay` if the avatar's working frames already depict its working pose. The `laptop` option is an app-drawn overlay for avatars without their own laptop artwork. The current illustrated character omits this overlay.
 
 The menu icon filename must stay inside the avatar directory. Invalid manifests fall back to the original layout; a missing menu icon falls back to the idle frame. Motion policy remains shared: quiet during routine work, animation on hover or attention, and respect for Reduce Motion.
 
