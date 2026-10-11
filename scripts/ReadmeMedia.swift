@@ -71,12 +71,12 @@ extension Bundle { static var module: Bundle { .main } }
       notice: Notice(
         sessionID: "preview-done", title: "Polish the settings screen",
         message: "Changes are ready. All tests pass."),
-      frame: NSRect(x: 505, y: 426, width: 430, height: 76))
+      frame: NSRect(x: 505, y: 426, width: 430, height: 64))
     let cardB = NotificationCard(
       notice: Notice(
         sessionID: "preview-input", title: "Review the API changes",
-        message: "Claude needs your permission to run tests.", needsInput: true),
-      frame: NSRect(x: 505, y: 337, width: 430, height: 76))
+        message: "Claude needs your permission to run the test suite. Review the proposed command in your terminal to continue.", needsInput: true),
+      frame: NSRect(x: 505, y: 354, width: 430, height: 64))
     canvas.addSubview(cardA)
     canvas.addSubview(cardB)
     let pet = PetView(frame: NSRect(x: 760, y: 135, width: 160, height: 160))
@@ -104,8 +104,8 @@ extension Bundle { static var module: Bundle { .main } }
     let notice = NotificationCard(
       notice: Notice(
         sessionID: "preview", title: "Review the API changes",
-        message: "Claude needs your permission to run tests.", needsInput: true),
-      frame: NSRect(x: 105, y: 265, width: 430, height: 76))
+        message: "Claude needs your permission to run the test suite. Review the proposed command in your terminal to continue.", needsInput: true),
+      frame: NSRect(x: 105, y: 265, width: 430, height: 64))
     tour.addSubview(notice)
     var frames: [CGImage] = []
     for i in 0..<60 {

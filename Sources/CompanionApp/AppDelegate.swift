@@ -233,6 +233,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       Notice(
         sessionID: "sample", title: "Sample notification",
         message: "Your companion is ready. Real session messages appear here."))
+    panel.setVisible(true)
+    panel.revealForAttention()
     refresh()
   }
   func demo() {

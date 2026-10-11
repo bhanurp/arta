@@ -120,33 +120,39 @@ final class NotificationCard: NSVisualEffectView {
     blendingMode = .behindWindow
     state = .active
     wantsLayer = true
-    layer?.cornerRadius = 35
+    layer?.cornerRadius = 18
     layer?.borderWidth = 1
     layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
     appearance = NSAppearance(named: .darkAqua)
     let icon = NSTextField(labelWithString: notice.needsInput ? "●" : "✓")
     icon.textColor = notice.needsInput ? .systemOrange : .systemGreen
-    icon.font = .boldSystemFont(ofSize: 20)
-    icon.frame = NSRect(x: 18, y: 35, width: 22, height: 26)
+    icon.font = .boldSystemFont(ofSize: 15)
+    icon.frame = NSRect(x: 12, y: frame.height - 25, width: 18, height: 19)
     addSubview(icon)
     let title = NSTextField(labelWithString: notice.title)
-    title.font = .boldSystemFont(ofSize: 15)
+    title.font = .systemFont(ofSize: 13, weight: .semibold)
     title.textColor = .white
     title.lineBreakMode = .byTruncatingTail
-    title.frame = NSRect(x: 43, y: 38, width: frame.width - 88, height: 22)
+    title.frame = NSRect(x: 33, y: frame.height - 24, width: frame.width - 69, height: 18)
     addSubview(title)
     let preview = NSTextField(
       labelWithString: notice.message.replacingOccurrences(of: "\n", with: " "))
-    preview.font = .systemFont(ofSize: 14)
+    preview.font = .systemFont(ofSize: 13)
     preview.textColor = .secondaryLabelColor
-    preview.lineBreakMode = .byTruncatingTail
-    preview.frame = NSRect(x: 20, y: 15, width: frame.width - 45, height: 22)
+    preview.maximumNumberOfLines = 2
+    preview.cell?.wraps = true
+    preview.cell?.isScrollable = false
+    preview.cell?.usesSingleLineMode = false
+    preview.lineBreakMode = .byWordWrapping
+    preview.cell?.truncatesLastVisibleLine = true
+    toolTip = notice.message
+    preview.frame = NSRect(x: 12, y: 6, width: frame.width - 24, height: 32)
     addSubview(preview)
     let close = NSButton(title: "×", target: self, action: #selector(closeCard))
     close.isBordered = false
-    close.font = .systemFont(ofSize: 20)
+    close.font = .systemFont(ofSize: 17)
     close.contentTintColor = .secondaryLabelColor
-    close.frame = NSRect(x: frame.width - 35, y: 36, width: 25, height: 25)
+    close.frame = NSRect(x: frame.width - 31, y: frame.height - 29, width: 28, height: 28)
     close.toolTip = "Dismiss notification"
     close.setAccessibilityLabel("Dismiss notification")
     addSubview(close)
@@ -455,10 +461,10 @@ final class PetPanel: NSObject {
     cards = []
     for n in notices {
       let panel = FloatingPanel(
-        contentRect: NSRect(x: 0, y: 0, width: 430, height: 76),
+        contentRect: NSRect(x: 0, y: 0, width: 430, height: 64),
         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
       configure(panel)
-      let card = NotificationCard(notice: n, frame: NSRect(x: 0, y: 0, width: 430, height: 76))
+      let card = NotificationCard(notice: n, frame: NSRect(x: 0, y: 0, width: 430, height: 64))
       card.open = { [weak self] in self?.onOpen?(n) }
       card.dismiss = { [weak self] in self?.onDismiss?(n.id) }
       panel.contentView = card

@@ -5,9 +5,9 @@ public struct PanelLayout {
   public var pet: CGRect
   public var cards: [CGRect]
   public init(screen: CGRect, petOrigin: CGPoint, count: Int) {
-    let capacity = max(0, Int((screen.height - 213) / 86))
+    let capacity = max(0, Int((screen.height - 213) / 72))
     let actual = min(max(0, count), capacity)
-    let total = CGFloat(actual) * 86
+    let total = CGFloat(actual) * 72
     let x = min(max(petOrigin.x, screen.minX), screen.maxX - 192)
     let y = min(max(petOrigin.y, screen.minY), screen.maxY - 188 - total - 8)
     pet = CGRect(x: x, y: max(screen.minY, y), width: 192, height: 188)
@@ -15,7 +15,7 @@ public struct PanelLayout {
     let cardX = min(max(pet.maxX - width, screen.minX), screen.maxX - width)
     cards = []
     cards = (0..<actual).map {
-      CGRect(x: cardX, y: pet.maxY + 8 + CGFloat(actual - 1 - $0) * 86, width: width, height: 76)
+      CGRect(x: cardX, y: pet.maxY + 8 + CGFloat(actual - 1 - $0) * 72, width: width, height: 64)
     }
   }
 }
