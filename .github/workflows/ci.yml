@@ -51,6 +51,8 @@ jobs:
         run: scripts/check-notifications.sh
       - name: Package development app
         run: scripts/build-app.sh
+      - name: Launch packaged app without build resources
+        run: scripts/check-packaged-app.sh
       - name: Verify app bundle
         run: |
           codesign --verify --deep --strict dist/Arta.app

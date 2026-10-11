@@ -9,7 +9,12 @@ final class AvatarAssets {
   let menuIcon: NSImage?
   private init() {
     let root = Bundle.main.resourceURL?.appendingPathComponent("Pet")
-    let fallback = Bundle.module.resourceURL?.appendingPathComponent("Resources/Pet")
+    // Do not evaluate Bundle.module: its generated accessor traps when SwiftPM's
+    // build-directory bundle is absent on an end user's Mac.
+    let fallback = Bundle(
+      url: Bundle.main.bundleURL.appendingPathComponent(
+        "ClaudeCompanion_CompanionApp.bundle"))?.resourceURL?.appendingPathComponent(
+        "Resources/Pet")
     let directory = [root, fallback].compactMap { $0 }.first {
       FileManager.default.fileExists(atPath: $0.appendingPathComponent("manifest.json").path)
     }

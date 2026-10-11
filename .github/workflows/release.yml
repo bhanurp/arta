@@ -33,6 +33,7 @@ jobs:
       - name: Build and verify
         run: |
           scripts/build-app.sh
+          scripts/check-packaged-app.sh
           codesign --verify --deep --strict dist/Arta.app
           lipo dist/Arta.app/Contents/MacOS/CompanionApp -verify_arch arm64
           mkdir -p dist/updates
