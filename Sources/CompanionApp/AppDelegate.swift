@@ -47,21 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.onOpen = { [weak self] notice in self?.openNotice(notice) }
     status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     status.button?.title = ""
-    if let sheet = panel.pet.sheet?.cgImage(forProposedRect: nil, context: nil, hints: nil),
-      let idle = sheet.cropping(
-        to: CGRect(x: 0, y: 0, width: sheet.width / 4, height: sheet.height / 4))
-    {
-      let icon = NSImage(size: NSSize(width: 20, height: 20), flipped: false) { rect in
-        NSGraphicsContext.current?.imageInterpolation = .none
-        NSImage(cgImage: idle, size: NSSize(width: idle.width, height: idle.height)).draw(in: rect)
-        return true
-      }
-      icon.isTemplate = false
-      status.button?.image = icon
-    } else {
-      status.button?.image = NSImage(
-        systemSymbolName: "face.smiling", accessibilityDescription: "Arta")
-    }
+    status.button?.image = AvatarAssets.current.menuIcon
     status.button?.imagePosition = .imageOnly
     status.button?.setAccessibilityLabel("Arta")
     let menu = NSMenu()
@@ -83,7 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
       self?.poll()
     }
-    animation = Timer.scheduledTimer(withTimeInterval: 0.32, repeats: true) { [weak self] _ in
+    animation = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
       self?.panel.animate()
     }
     NotificationCenter.default.addObserver(

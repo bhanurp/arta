@@ -66,21 +66,24 @@ final class PetView: NSView {
   }
   var dragged = false
   var badge = ""
-  let sheet: NSImage? = NSImage(
-    contentsOf: (Bundle.main.url(forResource: "sprites", withExtension: "png", subdirectory: "Pet")
-      ?? Bundle.module.url(
-        forResource: "sprites", withExtension: "png", subdirectory: "Resources/Pet"))!)
+  let avatar = AvatarAssets.current
+  var sheet: NSImage? { avatar.sheet }
   override func draw(_ dirtyRect: NSRect) {
     guard let sheet, let cg = sheet.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
       return
     }
-    let w = cg.width / 4
-    let h = cg.height / 4
-    if let crop = cg.cropping(to: CGRect(x: frameIndex * w, y: displayRow * h, width: w, height: h))
-    {
-      NSGraphicsContext.current?.imageInterpolation = .none
+    let w = cg.width / avatar.manifest.columns
+    let h = cg.height / avatar.manifest.rows
+    let rowName = ["idle", "working", "waiting", "finished"][displayRow]
+    let spriteRow = avatar.manifest.states.firstIndex(of: rowName) ?? 0
+    if let crop = cg.cropping(
+      to: CGRect(
+        x: (frameIndex % avatar.manifest.framesPerState) * w, y: spriteRow * h, width: w, height: h)
+    ) {
+      NSGraphicsContext.current?.imageInterpolation =
+        avatar.manifest.interpolation == "smooth" ? .high : .none
       NSImage(cgImage: crop, size: NSSize(width: w, height: h)).draw(in: bounds)
-      if displayRow == 1 {
+      if displayRow == 1 && avatar.manifest.workingOverlay == "laptop" {
         // A quiet laptop pose, drawn in front of the character's lower body.
         let screen = NSRect(x: 24, y: 14, width: 82, height: 48)
         NSColor(calibratedWhite: 0.16, alpha: 1).setFill()
@@ -568,7 +571,9 @@ final class PetPanel: NSObject {
           ? pet.hoverStarted
           : pet.notificationActive ? pet.notificationStarted : pet.attentionStarted),
       reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
-      hovering: pet.hovering, attention: pet.notificationActive)
+      hovering: pet.hovering, attention: pet.notificationActive,
+      frameCount: pet.avatar.manifest.framesPerState,
+      secondsPerFrame: pet.avatar.manifest.secondsPerFrame)
     if next != pet.frameIndex || pet.lastAnimatedRow != pet.displayRow {
       pet.lastAnimatedRow = pet.displayRow
       pet.frameIndex = next

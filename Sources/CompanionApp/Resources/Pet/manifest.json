@@ -1,1 +1,16 @@
-{"columns":4,"rows":4,"framesPerState":4,"secondsPerFrame":0.32,"states":["idle","working","waiting","finished"],"source":"Original generated artwork, October 10 2026"}
+{
+  "columns": 4,
+  "rows": 4,
+  "framesPerState": 4,
+  "secondsPerFrame": 0.32,
+  "states": [
+    "idle",
+    "working",
+    "waiting",
+    "finished"
+  ],
+  "source": "Original generated artwork, October 10 2026",
+  "menuIcon": "menu-icon.pdf",
+  "interpolation": "pixel",
+  "workingOverlay": "laptop"
+}

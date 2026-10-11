@@ -176,3 +176,7 @@ scripts/render-readme-media.sh
 ```
 
 See [VERIFICATION.md](VERIFICATION.md) for verification history and known limits.
+
+## Avatar-ready artwork
+
+The menu bar uses a dedicated vector face icon for crisp Retina rendering. Avatar artwork is separate from session tracking: sprite layout, animation timing, rendering style, and menu icon are configured in a manifest. See [Creating avatars](docs/AVATARS.md) for the asset contract. The current build bundles one avatar; an in-app avatar picker is not included yet.

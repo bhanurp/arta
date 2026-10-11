@@ -100,3 +100,7 @@ Replaced the branch outline with a white Git-style diamond and dark internal bra
 ## Compact menu-bar pet
 
 Replaced the variable-width session text with a square status item using Arta's actual idle sprite at 20 points. The icon is static, with counts in its tooltip and accessibility label; clicking retains the existing menu. Strict Swift lint, release build and installed signature verification passed. The published v0.1.0 asset is unchanged; this update is on main and installed locally.
+
+## Crisp menu artwork and avatar assets
+
+Replaced the shrunken pixel sprite menu icon with an original dedicated vector PDF face. Visually inspected its rendered colors and silhouette. Added validated avatar manifests and a shared asset loader: menu art, sprite dimensions/state-row mapping, frame count/timing, interpolation, and optional laptop overlay no longer require changes to tracking logic. Legacy/missing-icon fallback remains available. Added tests for legacy and alternate manifests, rejected paths/layouts/timing, and alternate animation frame counts. All 39 tests, strict Swift lint, release build, README media rendering, and installed code-signature verification passed. One avatar remains bundled; no runtime gallery/selector is claimed.
