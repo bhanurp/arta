@@ -9,6 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   var store = SessionStore()
   var panel: PetPanel!
   var status: NSStatusItem!
+  private let workingMenuItem = NSMenuItem(title: "Working: 0", action: nil, keyEquivalent: "")
+  private let inputMenuItem = NSMenuItem(
+    title: "Needs your input: 0", action: nil, keyEquivalent: "")
   var timer: Timer?
   var animation: Timer?
   var window: NSWindow?
@@ -67,6 +70,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     status.button?.imagePosition = .imageOnly
     status.button?.setAccessibilityLabel("Arta")
     let menu = NSMenu()
+    workingMenuItem.image = NSImage(systemSymbolName: "hammer", accessibilityDescription: nil)
+    inputMenuItem.image = NSImage(systemSymbolName: "hand.raised", accessibilityDescription: nil)
+    menu.addItem(workingMenuItem)
+    menu.addItem(inputMenuItem)
+    menu.addItem(.separator())
     add(menu, "New Claude Code chat…", #selector(newChat))
     add(menu, "Set up Terminal permissions…", #selector(setUpTerminalPermissions))
     add(menu, "Sessions & settings…", #selector(showSessions))
@@ -232,6 +240,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.render(
       store.queue.visible, state: state, unread: store.queue.allMessages.filter { !$0.read }.count,
       commits: store.dailyCommits?.count() ?? 0, working: working > 0)
+    workingMenuItem.title = "Working: \(working)"
+    inputMenuItem.title = "Needs your input: \(waiting)"
     status.button?.toolTip = "Arta · \(working) working · \(waiting) need you"
     status.button?.setAccessibilityLabel("Arta, \(working) working, \(waiting) need your input")
     panel.pet.toolTip =
