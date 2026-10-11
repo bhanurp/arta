@@ -1,8 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-  <channel>
-    <title>Arta updates</title>
-    <description>Signed, stable releases of Arta for macOS.</description>
-    <language>en</language>
-  </channel>
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Arta</title>
+        <item>
+            <title>0.1.2</title>
+            <pubDate>Sun, 11 Oct 2026 17:32:04 +0000</pubDate>
+            <sparkle:version>1002</sparkle:version>
+            <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/bhanurp/arta/releases/download/v0.1.2/Arta-v0.1.2-macos-arm64.zip" length="2682898" type="application/octet-stream" sparkle:edSignature="rWRplyAS59s9/cvo+huSdPiqV4jZ9+YVnqzaEBuLyv3HwbkMxBEUmx9gsRYJkgs6Q2vpIyBw9V+8gH7qDb1wBw=="/>
+        </item>
+    </channel>
 </rss>
