@@ -96,3 +96,7 @@ Added a small green indeterminate indicator above the pet while any tracked sess
 ## Monochrome Git diamond
 
 Replaced the branch outline with a white Git-style diamond and dark internal branch, retaining the orange count badge. Rendered and visually inspected the native tray preview. Strict Swift lint, release build, media rendering and installed signature verification passed. No counter logic changed.
+
+## Compact menu-bar pet
+
+Replaced the variable-width session text with a square status item using Arta's actual idle sprite at 20 points. The icon is static, with counts in its tooltip and accessibility label; clicking retains the existing menu. Strict Swift lint, release build and installed signature verification passed. The published v0.1.0 asset is unchanged; this update is on main and installed locally.

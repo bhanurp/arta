@@ -45,8 +45,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self?.refresh()
     }
     panel.onOpen = { [weak self] notice in self?.openNotice(notice) }
-    status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    status.button?.title = "✦ Claude"
+    status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    status.button?.title = ""
+    if let sheet = panel.pet.sheet?.cgImage(forProposedRect: nil, context: nil, hints: nil),
+      let idle = sheet.cropping(
+        to: CGRect(x: 0, y: 0, width: sheet.width / 4, height: sheet.height / 4))
+    {
+      let icon = NSImage(size: NSSize(width: 20, height: 20), flipped: false) { rect in
+        NSGraphicsContext.current?.imageInterpolation = .none
+        NSImage(cgImage: idle, size: NSSize(width: idle.width, height: idle.height)).draw(in: rect)
+        return true
+      }
+      icon.isTemplate = false
+      status.button?.image = icon
+    } else {
+      status.button?.image = NSImage(
+        systemSymbolName: "face.smiling", accessibilityDescription: "Arta")
+    }
+    status.button?.imagePosition = .imageOnly
+    status.button?.setAccessibilityLabel("Arta")
     let menu = NSMenu()
     add(menu, "New Claude Code chat…", #selector(newChat))
     add(menu, "Set up Terminal permissions…", #selector(setUpTerminalPermissions))
@@ -211,7 +228,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.render(
       store.queue.visible, state: state, unread: store.queue.allMessages.filter { !$0.read }.count,
       commits: store.dailyCommits?.count() ?? 0, working: working > 0)
-    status.button?.title = "✦ \(working) working · \(waiting) need you"
+    status.button?.toolTip = "Arta · \(working) working · \(waiting) need you"
+    status.button?.setAccessibilityLabel("Arta, \(working) working, \(waiting) need your input")
     panel.pet.toolTip =
       "\(working) working · \(waiting) need input · \(store.queue.pending.count) pending messages. Click for sessions."
     if window?.isVisible == true { updateList() }
