@@ -59,7 +59,7 @@ Successful commits release an orange icon; pushes release a teal arrow. They dri
 
 **Requires macOS 14 or later and an installed, signed-in copy of Claude Code.**
 
-1. Download **Arta-v0.1.0-macos-arm64.zip** from the [v0.1.0 release](https://github.com/bhanurp/arta/releases/tag/v0.1.0) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
+1. Download **Arta-v0.1.1-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
 2. Extract the archive, open **Arta.app**, and click **Install & Start**.
 3. Approve macOS Automation and Accessibility requests to enable new Terminal tabs. Permission setup can be retried from the menu bar.
 4. Start a Claude Code session. Arta picks up its events automatically.
@@ -199,4 +199,4 @@ Use **Check for Updates…** in the menu bar for an immediate check, or turn off
 
 The workflow requires the repository Actions secret `SPARKLE_PRIVATE_KEY`. The matching private key is kept in the maintainer’s macOS Keychain under Sparkle account `arta`; the public key is in `Resources/Info.plist`. Never commit the private key. Keep a secure backup: losing it prevents updates to existing installs. Changes to the archive invalidate its signature, so do not replace published assets. If upload succeeded but feed publication failed, rerun only the feed publication step with the original signed appcast; do not overwrite the archive.
 
-The initial feed is empty until the first updater-enabled release is published. Archive signing is separate from Apple Developer ID signing: these builds remain ad-hoc signed and unnotarized.
+Automatic updates are included starting with v0.1.1. Archive signing is separate from Apple Developer ID signing: these builds remain ad-hoc signed and unnotarized.
