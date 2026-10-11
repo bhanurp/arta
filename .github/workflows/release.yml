@@ -31,7 +31,7 @@ jobs:
         run: |
           scripts/build-app.sh
           codesign --verify --deep --strict dist/Arta.app
-          lipo -verify_arch arm64 dist/Arta.app/Contents/MacOS/CompanionApp
+          lipo dist/Arta.app/Contents/MacOS/CompanionApp -verify_arch arm64
           mkdir -p dist/updates
           ditto -c -k --sequesterRsrc --keepParent dist/Arta.app "dist/updates/Arta-$RELEASE_TAG-macos-arm64.zip"
       - name: Sign update
