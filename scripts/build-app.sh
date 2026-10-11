@@ -1,8 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-swift build -c release
-BIN="$(swift build -c release --show-bin-path)"
+BUILD_FLAGS=(-c release)
+if [[ -n "${ARTA_TARGET_ARCH:-}" ]]; then
+  [[ "$ARTA_TARGET_ARCH" == arm64 || "$ARTA_TARGET_ARCH" == x86_64 ]] || exit 1
+  BUILD_FLAGS+=(--arch "$ARTA_TARGET_ARCH")
+fi
+swift build "${BUILD_FLAGS[@]}"
+BIN="$(swift build "${BUILD_FLAGS[@]}" --show-bin-path)"
 APP="$PWD/dist/Arta.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN/CompanionApp" "$APP/Contents/MacOS/CompanionApp"
