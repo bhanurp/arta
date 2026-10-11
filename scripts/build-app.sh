@@ -4,10 +4,16 @@ cd "$(dirname "$0")/.."
 swift build -c release
 BIN="$(swift build -c release --show-bin-path)"
 APP="$PWD/dist/Arta.app"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN/CompanionApp" "$APP/Contents/MacOS/CompanionApp"
 cp "$BIN/CompanionHook" "$APP/Contents/MacOS/CompanionHook"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+if [[ -n "${ARTA_RELEASE_VERSION:-}" ]]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $ARTA_RELEASE_VERSION" "$APP/Contents/Info.plist"
+  ARTA_BUILD_NUMBER="$(/usr/bin/python3 -c 'import sys; v=list(map(int,sys.argv[1].split("."))); assert len(v)==3 and all(0<=n<1000 for n in v); print(v[0]*1000000+v[1]*1000+v[2])' "$ARTA_RELEASE_VERSION")"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $ARTA_BUILD_NUMBER" "$APP/Contents/Info.plist"
+fi
+ditto .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework "$APP/Contents/Frameworks/Sparkle.framework"
 rm -rf "$APP/Contents/MacOS/ClaudeCompanion_CompanionApp.bundle" "$APP/Contents/Resources/ClaudeCompanion_CompanionApp.bundle"
 cp -R Sources/CompanionApp/Resources/Pet "$APP/Contents/Resources/"
 codesign --force --sign - "$APP/Contents/MacOS/CompanionHook"

@@ -2,6 +2,7 @@ import AppKit
 import CompanionCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+  let updates = AppUpdates()
   var observer = TranscriptObserver()
   var observedPaths: [String: URL] = [:]
   var hookSessions = Set<String>()
@@ -31,6 +32,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       UserDefaults.standard.integer(forKey: "visibleLimit") == 0
         ? 2 : UserDefaults.standard.integer(forKey: "visibleLimit"))
     installed = HookInstaller.installed(settingsURL: settings, executableURL: helper)
+    if installed {
+      do {
+        let source = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/CompanionHook")
+        if FileManager.default.fileExists(atPath: source.path) {
+          let bundled = try Data(contentsOf: source)
+          if bundled != (try? Data(contentsOf: helper)) {
+            try bundled.write(to: helper, options: .atomic)
+            try FileManager.default.setAttributes(
+              [.posixPermissions: 0o700], ofItemAtPath: helper.path)
+          }
+        }
+      } catch {
+        diagnostic = "Could not refresh the tracking helper: \(error.localizedDescription)"
+      }
+    }
     panel = PetPanel()
     panel.onNewChat = { [weak self] in self?.newChat() }
     panel.onSessions = { [weak self] in self?.showSessions() }
@@ -56,6 +72,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     add(menu, "Sessions & settings…", #selector(showSessions))
     add(menu, "Show / hide companion", #selector(toggle))
     add(menu, "Sample notification", #selector(sample))
+    menu.addItem(.separator())
+    updates.start(in: menu)
     menu.addItem(.separator())
     add(menu, "Disable tracking", #selector(disable))
     add(menu, "Quit", #selector(quit))

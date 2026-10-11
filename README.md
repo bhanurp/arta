@@ -87,11 +87,11 @@ Do not create real Git commits or pushes just to test the visual effects.
 ### Agent installation checklist
 
 1. **Check the Mac and access.** Require macOS 14 or later. Check `sw_vers`, `uname -m`, `xcodebuild -version`, `swift --version`, and `claude --version`. Source builds are verified with Xcode 26.2 / Swift 6.2.3. If Xcode or Claude Code is missing, explain the prerequisite before starting a large installation. Claude must be signed in; let the user complete sign-in without requesting or displaying credentials.
-2. **Get the source.** This repository is currently private: the user's GitHub account must have access. If using GitHub CLI, check `gh auth status` and `gh repo view bhanurp/arta`. Reuse an existing checkout after inspecting its changes; otherwise clone into a user-chosen development folder. Do not reset or overwrite local work.
+2. **Get the source.** This repository is public; cloning does not require a GitHub login. If using GitHub CLI, check `gh auth status` and `gh repo view bhanurp/arta`. Reuse an existing checkout after inspecting its changes; otherwise clone into a user-chosen development folder. Do not reset or overwrite local work.
 3. **Build and verify.** Run the commands below from the repository root. Stop on a failed build or test and report the actual failure. A successful build creates `dist/Arta.app`; building alone does not install tracking.
 4. **Use the app's installer.** Open `dist/Arta.app`, then click **Install & Start** in Sessions & settings. An agent with native UI tools can click it; without those tools, ask the user to perform this one step. There is currently no supported headless installation flag. The installer copies the app to `~/Applications/Arta.app`, installs the stable helper, backs up and merges hooks, and starts the installed copy. Do not manually replace the entire Claude settings file or add duplicate hooks.
 5. **Let the user approve permissions.** The installed app requests Automation for Terminal/System Events and Accessibility for opening new Terminal tabs. The user must approve macOS privacy prompts. If declined, explain how to retry **Set up Terminal permissions…** from Arta's menu; do not change privacy databases or bypass macOS security controls. Development builds are not notarized, so opening a downloaded copy can also require user approval.
-6. **Verify the result.** Confirm the app runs from `~/Applications/Arta.app`. Use **Sample notification**, then click the bell to view it. Start or observe a real local Claude Code session and check that diagnostics report a received event. Existing sessions may need `/hooks` or a restart. Test **New Chat** after permission is granted; it should start Claude in the selected folder in a new Terminal tab. Distinguish successful installation from any unverified sign-in, permission, or session checks.
+6. **Verify the result.** Confirm the app runs from `~/Applications/Arta.app`. Use **Sample notification** and verify that it appears automatically. Start or observe a real local Claude Code session and check that diagnostics report a received event. Existing sessions may need `/hooks` or a restart. Test **New Chat** after permission is granted; it should start Claude in the selected folder in a new Terminal tab. Distinguish successful installation from any unverified sign-in, permission, or session checks.
 
 ```bash
 # From a new checkout, or an existing checkout whose local work is preserved:
@@ -182,3 +182,19 @@ See [VERIFICATION.md](VERIFICATION.md) for verification history and known limits
 The menu bar uses a dedicated vector face icon for crisp Retina rendering. Avatar artwork is separate from session tracking: sprite layout, animation timing, rendering style, and menu icon are configured in a manifest. See [Creating avatars](docs/AVATARS.md) for the asset contract. The current build bundles one avatar; an in-app avatar picker is not included yet.
 
 The desktop character uses original smoothly shaded illustration with four pose sets, including its own laptop working pose. See [artwork notes and generation prompts](docs/ARTWORK.md).
+
+## Automatic updates
+
+Arta uses [Sparkle](https://sparkle-project.org/) to check for stable releases every four hours while running. Updates are downloaded automatically and verified with Arta’s Ed25519 signing key before extraction. Sparkle handles installation and relaunch; it may offer an Install and Relaunch prompt. Claude Code runs separately and is not terminated by an Arta update.
+
+Use **Check for Updates…** in the menu bar for an immediate check, or turn off **Automatically update Arta**. Preferences and session history remain outside the app bundle, and the tracking helper refreshes on launch. v0.1.0 has no updater: install an updater-enabled build manually once.
+
+### Publishing an update
+
+1. Commit and tag the intended source with a stable `vMAJOR.MINOR.PATCH` version (each component below 1000).
+2. Publish a GitHub release for that tag. The **Publish signed update** workflow runs tests, builds the Apple Silicon app, signs the update archive, and uploads it to that release.
+3. After the archive is available, the workflow updates `updates/appcast.xml` on `main`. Drafts and prereleases do not enter this feed. Older releases cannot replace a newer feed entry.
+
+The workflow requires the repository Actions secret `SPARKLE_PRIVATE_KEY`. The matching private key is kept in the maintainer’s macOS Keychain under Sparkle account `arta`; the public key is in `Resources/Info.plist`. Never commit the private key. Keep a secure backup: losing it prevents updates to existing installs. Changes to the archive invalidate its signature, so do not replace published assets. If upload succeeded but feed publication failed, rerun only the feed publication step with the original signed appcast; do not overwrite the archive.
+
+The initial feed is empty until the first updater-enabled release is published. Archive signing is separate from Apple Developer ID signing: these builds remain ad-hoc signed and unnotarized.

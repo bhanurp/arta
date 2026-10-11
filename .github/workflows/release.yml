@@ -1,0 +1,46 @@
+name: Publish signed update
+on:
+  release:
+    types: [published]
+permissions:
+  contents: write
+concurrency:
+  group: publish-arta-update
+  cancel-in-progress: false
+jobs:
+  release:
+    if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - name: Validate version
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          echo "ARTA_RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
+      - name: Test
+        run: swift test -Xswiftc -warnings-as-errors
+      - name: Build and verify
+        run: |
+          scripts/build-app.sh
+          codesign --verify --deep --strict dist/Arta.app
+          mkdir -p dist/updates
+          ditto -c -k --sequesterRsrc --keepParent dist/Arta.app "dist/updates/Arta-$RELEASE_TAG-macos-arm64.zip"
+      - name: Sign update
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          test -n "$SPARKLE_PRIVATE_KEY"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast --ed-key-file - --maximum-deltas 0 --download-url-prefix "https://github.com/bhanurp/arta/releases/download/$RELEASE_TAG/" dist/updates
+      - name: Upload archive, then publish feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$RELEASE_TAG" "dist/updates/Arta-$RELEASE_TAG-macos-arm64.zip" --repo bhanurp/arta
+          /usr/bin/python3 scripts/publish-appcast.py dist/updates/appcast.xml
