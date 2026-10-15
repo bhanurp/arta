@@ -3,13 +3,13 @@
     <channel>
         <title>Arta</title>
         <item>
-            <title>0.1.3</title>
-            <pubDate>Sun, 11 Oct 2026 17:38:01 +0000</pubDate>
-            <sparkle:version>1003</sparkle:version>
-            <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
+            <title>0.1.4</title>
+            <pubDate>Thu, 15 Oct 2026 14:23:20 +0000</pubDate>
+            <sparkle:version>1004</sparkle:version>
+            <sparkle:shortVersionString>0.1.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/bhanurp/arta/releases/download/v0.1.3/Arta-v0.1.3-macos-arm64.zip" length="2682523" type="application/octet-stream" sparkle:edSignature="HWIAClP/2AznoN9p3CSW0sTK1XwJ1pfx1EE63dRHcBqt3UuXnWA0KpCUJukPVVZxMCRiwLcX0iuP1MMF8qmSBA=="/>
+            <enclosure url="https://github.com/bhanurp/arta/releases/download/v0.1.4/Arta-v0.1.4-macos-arm64.zip" length="2698115" type="application/octet-stream" sparkle:edSignature="+qSIq2LfkW/SzUgqUgYUwaUg0PlMQ9lMJSQr7o64KFs7RS1k2rlv9yfhtn86n9OZHCGCWqVch9QGTaX2be6LAA=="/>
         </item>
     </channel>
 </rss>
