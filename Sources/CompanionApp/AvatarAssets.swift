@@ -4,6 +4,7 @@ import CompanionCore
 /// Avatar artwork is independent of tracking and notifications.
 final class AvatarAssets {
   static let current = AvatarAssets()
+  let resourceDirectory: URL?
   let manifest: AvatarManifest
   let sheet: NSImage?
   let menuIcon: NSImage?
@@ -18,6 +19,7 @@ final class AvatarAssets {
     let directory = [root, fallback].compactMap { $0 }.first {
       FileManager.default.fileExists(atPath: $0.appendingPathComponent("manifest.json").path)
     }
+    resourceDirectory = directory
     if let directory,
       let data = try? Data(contentsOf: directory.appendingPathComponent("manifest.json")),
       let decoded = try? JSONDecoder().decode(AvatarManifest.self, from: data), decoded.isValid

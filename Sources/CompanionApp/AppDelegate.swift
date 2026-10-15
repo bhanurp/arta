@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   var window: NSWindow?
   var list = NSTextView()
   var diagnostic = ""
+  var iconButtons: [NSButton] = []
+  var iconMenuItems: [NSMenuItem] = []
   var installed = false
   var tickCount = 0
   var lastTick = Date()
@@ -68,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.onOpen = { [weak self] notice in self?.openNotice(notice) }
     status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     status.button?.title = ""
-    status.button?.image = AvatarAssets.current.menuIcon
+    status.button?.image = AppIconAppearance.image(for: .selected(), size: 20)
     status.button?.imagePosition = .imageOnly
     status.button?.setAccessibilityLabel("Arta")
     let menu = NSMenu()
@@ -80,6 +82,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     add(menu, "New Claude Code chat…", #selector(newChat))
     add(menu, "Set up Terminal permissions…", #selector(setUpTerminalPermissions))
     add(menu, "Sessions & settings…", #selector(showSessions))
+    let appearance = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
+    let appearanceMenu = NSMenu()
+    let appIcon = NSMenuItem(title: "App Icon", action: nil, keyEquivalent: "")
+    let iconMenu = NSMenu()
+    for (index, choice) in AppIconChoice.allCases.enumerated() {
+      let item = NSMenuItem(
+        title: choice.title, action: #selector(selectIcon(_:)), keyEquivalent: "")
+      item.target = self
+      item.tag = index
+      item.image = AppIconAppearance.image(for: choice, size: 20)
+      iconMenu.addItem(item)
+      iconMenuItems.append(item)
+    }
+    appIcon.submenu = iconMenu
+    appearanceMenu.addItem(appIcon)
+    appearance.submenu = appearanceMenu
+    menu.addItem(appearance)
+    applyIconSelection()
     add(menu, "Show / hide companion", #selector(toggle))
     add(menu, "Sample notification", #selector(sample))
     menu.addItem(.separator())
@@ -287,39 +307,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
     let w = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 650, height: 570),
+      contentRect: NSRect(x: 0, y: 0, width: 650, height: 730),
       styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
     w.title = "Arta"
     w.appearance = NSAppearance(named: .darkAqua)
     w.isReleasedWhenClosed = false
-    w.minSize = NSSize(width: 650, height: 570)
+    w.minSize = NSSize(width: 650, height: 730)
     w.center()
     window = w
     let view = NSView(frame: w.contentLayoutRect)
     w.contentView = view
     let heading = NSTextField(labelWithString: "Your Claude sessions, close at hand.")
     heading.font = .boldSystemFont(ofSize: 23)
-    heading.frame = NSRect(x: 24, y: 510, width: 600, height: 32)
+    heading.frame = NSRect(x: 24, y: 670, width: 600, height: 32)
     view.addSubview(heading)
     let install = NSButton(
       title: "Install & Start", target: self, action: #selector(installAndStart))
     install.bezelStyle = .rounded
-    install.frame = NSRect(x: 24, y: 458, width: 155, height: 34)
+    install.frame = NSRect(x: 24, y: 618, width: 155, height: 34)
     view.addSubview(install)
     let label = NSTextField(labelWithString: "Visible messages")
-    label.frame = NSRect(x: 210, y: 466, width: 130, height: 20)
+    label.frame = NSRect(x: 210, y: 626, width: 130, height: 20)
     view.addSubview(label)
-    let picker = NSPopUpButton(frame: NSRect(x: 340, y: 460, width: 80, height: 30))
+    let picker = NSPopUpButton(frame: NSRect(x: 340, y: 620, width: 80, height: 30))
     picker.addItems(withTitles: (1...8).map(String.init))
     picker.selectItem(withTitle: String(limit))
     picker.target = self
     picker.action = #selector(changeLimit(_:))
     view.addSubview(picker)
     let clear = NSButton(title: "Clear history", target: self, action: #selector(clearHistory))
-    clear.frame = NSRect(x: 460, y: 460, width: 150, height: 30)
+    clear.frame = NSRect(x: 460, y: 620, width: 150, height: 30)
     clear.bezelStyle = .rounded
     view.addSubview(clear)
-    let scroll = NSScrollView(frame: NSRect(x: 24, y: 60, width: 602, height: 380))
+    let appearanceHeading = NSTextField(labelWithString: "App icon")
+    appearanceHeading.font = .systemFont(ofSize: 16, weight: .semibold)
+    appearanceHeading.frame = NSRect(x: 24, y: 578, width: 300, height: 24)
+    view.addSubview(appearanceHeading)
+    for (index, choice) in AppIconChoice.allCases.enumerated() {
+      let button = NSButton(title: choice.title, target: self, action: #selector(selectIcon(_:)))
+      button.frame = NSRect(x: 24 + CGFloat(index) * 204, y: 460, width: 194, height: 106)
+      button.setButtonType(.pushOnPushOff)
+      button.bezelStyle = .regularSquare
+      button.wantsLayer = true
+      button.layer?.cornerRadius = 8
+      button.image = AppIconAppearance.image(for: choice, size: 64)
+      button.imagePosition = .imageAbove
+      button.imageScaling = .scaleProportionallyDown
+      button.font = .systemFont(ofSize: 13, weight: .medium)
+      button.tag = index
+      button.setAccessibilityLabel("Use \(choice.title) app icon")
+      view.addSubview(button)
+      iconButtons.append(button)
+    }
+    let iconHint = NSTextField(
+      labelWithString:
+        "Changes the menu-bar and application icon. Your desktop avatar stays the same.")
+    iconHint.font = .systemFont(ofSize: 11)
+    iconHint.textColor = .secondaryLabelColor
+    iconHint.frame = NSRect(x: 24, y: 432, width: 602, height: 20)
+    view.addSubview(iconHint)
+    for control in view.subviews { control.autoresizingMask = [.minYMargin] }
+    applyIconSelection()
+    let scroll = NSScrollView(frame: NSRect(x: 24, y: 60, width: 602, height: 360))
     scroll.autoresizingMask = [.width, .height]
     scroll.hasVerticalScroller = true
     scroll.borderType = .bezelBorder
@@ -347,6 +396,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     updateList()
     w.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
+  }
+  @objc func selectIcon(_ sender: AnyObject) {
+    let index: Int
+    if let button = sender as? NSButton {
+      index = button.tag
+    } else if let item = sender as? NSMenuItem {
+      index = item.tag
+    } else {
+      return
+    }
+    guard AppIconChoice.allCases.indices.contains(index) else { return }
+    AppIconChoice.allCases[index].save()
+    applyIconSelection()
+  }
+  func applyIconSelection() {
+    let selected = AppIconChoice.selected()
+    status.button?.image = AppIconAppearance.image(for: selected, size: 20)
+    NSApp.applicationIconImage = AppIconAppearance.image(for: selected, size: 256)
+    for (index, choice) in AppIconChoice.allCases.enumerated() {
+      if iconMenuItems.indices.contains(index) {
+        iconMenuItems[index].state = choice == selected ? .on : .off
+      }
+      if iconButtons.indices.contains(index) {
+        iconButtons[index].state = choice == selected ? .on : .off
+        iconButtons[index].title = choice == selected ? "✓ " + choice.title : choice.title
+        iconButtons[index].layer?.borderWidth = choice == selected ? 2 : 0
+        iconButtons[index].layer?.borderColor = NSColor.controlAccentColor.cgColor
+      }
+    }
   }
   @objc func closeSessions() { window?.close() }
   func updateList() {

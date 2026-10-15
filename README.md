@@ -200,3 +200,7 @@ Use **Check for Updates…** in the menu bar for an immediate check, or turn off
 The workflow requires the repository Actions secret `SPARKLE_PRIVATE_KEY`. The matching private key is kept in the maintainer’s macOS Keychain under Sparkle account `arta`; the public key is in `Resources/Info.plist`. Never commit the private key. Keep a secure backup: losing it prevents updates to existing installs. Changes to the archive invalidate its signature, so do not replace published assets. If upload succeeded but feed publication failed, rerun only the feed publication step with the original signed appcast; do not overwrite the archive.
 
 Use v0.1.3 or newer for automatic updates. The v0.1.1 release has no download; v0.1.2 was withdrawn from the feed because of a resource packaging crash. Archive signing is separate from Apple Developer ID signing: these builds remain ad-hoc signed and unnotarized.
+
+### Choose your app icon
+
+Open **Sessions & settings → App icon** to choose Ember, Byte, or Kitsu. You can also use **Appearance → App Icon** in the menu bar. The selection applies immediately and is remembered after restart. These static icons change the menu-bar and running application icon; the animated desktop avatar is independent.
