@@ -59,7 +59,7 @@ Successful commits release an orange icon; pushes release a teal arrow. They dri
 
 **Requires macOS 14 or later and an installed, signed-in copy of Claude Code.**
 
-1. Download **Arta-v0.1.5-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
+1. Download **Arta-v0.1.6-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
 2. Extract the archive, open **Arta.app**, and click **Install & Start**.
 3. Approve macOS Automation and Accessibility requests to enable new Terminal tabs. Permission setup can be retried from the menu bar.
 4. Start a Claude Code session. Arta picks up its events automatically.
