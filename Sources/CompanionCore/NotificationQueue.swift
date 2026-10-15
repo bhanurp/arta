@@ -47,9 +47,12 @@ public struct NotificationQueue: Codable {
     if let i = history.firstIndex(where: { $0.id == id }) { history[i].read = true }
     fill()
   }
-  public mutating func tick(seconds: Double, visible isVisible: Bool = true) {
+  public mutating func tick(
+    seconds: Double, visible isVisible: Bool = true, displayedIDs: Set<UUID>? = nil
+  ) {
     guard isVisible else { return }
-    for i in visible.indices where !visible[i].needsInput {
+    for i in visible.indices
+    where !visible[i].needsInput && (displayedIDs == nil || displayedIDs!.contains(visible[i].id)) {
       visible[i].remaining -= max(0, seconds)
     }
     visible.removeAll { !$0.needsInput && $0.remaining <= 0 }

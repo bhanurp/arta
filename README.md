@@ -59,7 +59,7 @@ Successful commits release an orange icon; pushes release a teal arrow. They dri
 
 **Requires macOS 14 or later and an installed, signed-in copy of Claude Code.**
 
-1. Download **Arta-v0.1.5-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
+1. Download **Arta-v0.1.6-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
 2. Extract the archive, open **Arta.app**, and click **Install & Start**.
 3. Approve macOS Automation and Accessibility requests to enable new Terminal tabs. Permission setup can be retried from the menu bar.
 4. Start a Claude Code session. Arta picks up its events automatically.
@@ -181,7 +181,7 @@ See [VERIFICATION.md](VERIFICATION.md) for verification history and known limits
 
 ## Avatar-ready artwork
 
-The menu bar uses a dedicated vector face icon for crisp Retina rendering. Avatar artwork is separate from session tracking: sprite layout, animation timing, rendering style, and menu icon are configured in a manifest. See [Creating avatars](docs/AVATARS.md) for the asset contract. The current build bundles one avatar; an in-app avatar picker is not included yet.
+The menu bar uses a dedicated vector face icon for crisp Retina rendering. Avatar artwork is separate from session tracking: sprite layout, animation timing, rendering style, and menu icon are configured in a manifest. See [Creating avatars](docs/AVATARS.md) for the asset contract. The current build includes Ember, Byte, and Kitsu. Choose a companion in **Sessions & settings → Companion** or **Appearance → Companion** in the menu bar.
 
 The desktop character uses original smoothly shaded illustration with four pose sets, including its own laptop working pose. See [artwork notes and generation prompts](docs/ARTWORK.md).
 
@@ -200,3 +200,11 @@ Use **Check for Updates…** in the menu bar for an immediate check, or turn off
 The workflow requires the repository Actions secret `SPARKLE_PRIVATE_KEY`. The matching private key is kept in the maintainer’s macOS Keychain under Sparkle account `arta`; the public key is in `Resources/Info.plist`. Never commit the private key. Keep a secure backup: losing it prevents updates to existing installs. Changes to the archive invalidate its signature, so do not replace published assets. If upload succeeded but feed publication failed, rerun only the feed publication step with the original signed appcast; do not overwrite the archive.
 
 Use v0.1.3 or newer for automatic updates. The v0.1.1 release has no download; v0.1.2 was withdrawn from the feed because of a resource packaging crash. Archive signing is separate from Apple Developer ID signing: these builds remain ad-hoc signed and unnotarized.
+
+### Choose your companion
+
+Open **Sessions & settings → Companion** to choose Ember, Byte, or Kitsu. You can also use **Appearance → Companion** in the menu bar. The selection applies immediately and is remembered after restart. The selection changes the desktop companion, menu-bar icon, and running application icon together. All three companions use four-frame state animations with the same hover and attention timing, quiet working poses, and Reduce Motion support.
+
+### Collapsible notifications
+
+Multiple notifications initially appear as one layered stack. Use **+N more** to expand up to your visible-message limit, and **Collapse** to tuck them back. Dismissing the front card reveals the next message. Cards hidden behind the stack do not consume their display timer; input requests remain until resolved or dismissed.

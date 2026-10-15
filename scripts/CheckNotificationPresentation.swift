@@ -8,6 +8,30 @@ extension Bundle { static var module: Bundle { .main } }
     NSApp.setActivationPolicy(.prohibited)
     let panel = PetPanel()
     panel.setVisible(true)
+    for choice in AppIconChoice.allCases {
+      panel.pet.selectAppearance(choice)
+      precondition(panel.pet.appearanceChoice == choice)
+      precondition(panel.pet.frameIndex == 0)
+      panel.pet.hovering = true
+      panel.pet.hoverStarted = Date().addingTimeInterval(-0.4)
+      panel.animate()
+      precondition(panel.pet.frameIndex == (NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 1))
+      panel.pet.hovering = false
+      panel.pet.row = 2
+      panel.pet.attentionStarted = Date().addingTimeInterval(-7)
+      panel.animate()
+      precondition(panel.pet.frameIndex == 0, "Attention must settle after six seconds for every companion")
+      panel.pet.row = 0
+      if choice != .ember {
+        precondition(panel.pet.avatar.spriteSheet(for: choice) != nil, "Missing animated artwork")
+        for row in 0..<4 {
+          let frames = (0..<4).map { panel.pet.avatar.frame(for: choice, row: row, index: $0)?.tiffRepresentation }
+          precondition(frames.allSatisfy { $0 != nil })
+          precondition(Set(frames.compactMap { $0 }).count == 4, "Animation must have four distinct frames")
+        }
+      }
+    }
+    panel.pet.selectAppearance(.ember)
     defer {
       panel.setVisible(false)
       panel.petPanel.close()
@@ -42,6 +66,44 @@ extension Bundle { static var module: Bundle { .main } }
         precondition(shown.opacity > 0.1 && shown.position.y > 16, "Droplet must be visible and rise")
       }
     }
+    let stackNotices = (0..<3).map { Notice(sessionID: "stack-\($0)", title: "Task \($0)", message: "Waiting for your input", needsInput: true) }
+    panel.render(Array(stackNotices.prefix(2)), state: 2, unread: 3, pending: 1)
+    panel.revealForAttention()
+    precondition(panel.stackCollapsed)
+    precondition(panel.cards[0].isVisible && !panel.cards[1].isVisible)
+    precondition(panel.stackBackings.count == 2 && panel.stackBackings.allSatisfy(\.isVisible))
+    precondition(panel.displayedNoticeIDs == [stackNotices[0].id])
+    let stackPanels = Array(panel.cards.prefix(1)) + panel.stackBackings
+    let area = stackPanels.reduce(CGRect.null) { $0.union($1.frame) }.insetBy(dx: -10, dy: -10)
+    let preview = NSImage(size: area.size)
+    preview.lockFocus()
+    NSColor(calibratedWhite: 0.13, alpha: 1).setFill()
+    NSBezierPath(rect: CGRect(origin: .zero, size: area.size)).fill()
+    for window in stackPanels.reversed() {
+      let view = window.contentView!
+      if let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        bitmap.draw(in: window.frame.offsetBy(dx: -area.minX, dy: -area.minY))
+      }
+    }
+    preview.unlockFocus()
+    if let tiff = preview.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+      let png = bitmap.representation(using: .png, properties: [:]) {
+      try! FileManager.default.createDirectory(atPath: "dist", withIntermediateDirectories: true)
+      try! png.write(to: URL(fileURLWithPath: "dist/notification-stack-preview.png"))
+    }
+
+    (panel.cards[0].contentView as! NotificationCard).toggleCards()
+    precondition(!panel.stackCollapsed && panel.cards.allSatisfy(\.isVisible))
+    precondition(panel.stackBackings.allSatisfy { !$0.isVisible })
+    precondition(panel.displayedNoticeIDs.count == 2)
+    panel.toggleStack()
+    panel.render(Array(stackNotices.dropFirst()), state: 2, unread: 2)
+    precondition(panel.displayedNoticeIDs == [stackNotices[1].id])
+    panel.toggleTray()
+    precondition(panel.displayedNoticeIDs.isEmpty)
+    precondition((panel.cards + panel.stackBackings).allSatisfy { !$0.isVisible })
+    print("Collapsed layers, expand/collapse, next-card promotion, hidden timers, and bell visibility passed.")
     print("Recovered input auto-pops; bubble routes to its callback; bell hides the stack.")
   }
 }
