@@ -181,7 +181,7 @@ See [VERIFICATION.md](VERIFICATION.md) for verification history and known limits
 
 ## Avatar-ready artwork
 
-The menu bar uses a dedicated vector face icon for crisp Retina rendering. Avatar artwork is separate from session tracking: sprite layout, animation timing, rendering style, and menu icon are configured in a manifest. See [Creating avatars](docs/AVATARS.md) for the asset contract. The current build bundles one avatar; an in-app avatar picker is not included yet.
+The menu bar uses a dedicated vector face icon for crisp Retina rendering. Avatar artwork is separate from session tracking: sprite layout, animation timing, rendering style, and menu icon are configured in a manifest. See [Creating avatars](docs/AVATARS.md) for the asset contract. The current build includes Ember, Byte, and Kitsu. Choose a companion in **Sessions & settings → Companion** or **Appearance → Companion** in the menu bar.
 
 The desktop character uses original smoothly shaded illustration with four pose sets, including its own laptop working pose. See [artwork notes and generation prompts](docs/ARTWORK.md).
 
