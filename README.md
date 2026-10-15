@@ -201,6 +201,6 @@ The workflow requires the repository Actions secret `SPARKLE_PRIVATE_KEY`. The m
 
 Use v0.1.3 or newer for automatic updates. The v0.1.1 release has no download; v0.1.2 was withdrawn from the feed because of a resource packaging crash. Archive signing is separate from Apple Developer ID signing: these builds remain ad-hoc signed and unnotarized.
 
-### Choose your app icon
+### Choose your companion
 
-Open **Sessions & settings → App icon** to choose Ember, Byte, or Kitsu. You can also use **Appearance → App Icon** in the menu bar. The selection applies immediately and is remembered after restart. These static icons change the menu-bar and running application icon; the animated desktop avatar is independent.
+Open **Sessions & settings → Companion** to choose Ember, Byte, or Kitsu. You can also use **Appearance → Companion** in the menu bar. The selection applies immediately and is remembered after restart. The selection changes the desktop companion, menu-bar icon, and running application icon together. Byte and Kitsu use gentle attention motion and a quiet laptop pose while working.

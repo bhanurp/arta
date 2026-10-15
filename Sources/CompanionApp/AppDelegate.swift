@@ -84,7 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     add(menu, "Sessions & settings…", #selector(showSessions))
     let appearance = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
     let appearanceMenu = NSMenu()
-    let appIcon = NSMenuItem(title: "App Icon", action: nil, keyEquivalent: "")
+    let appIcon = NSMenuItem(title: "Companion", action: nil, keyEquivalent: "")
     let iconMenu = NSMenu()
     for (index, choice) in AppIconChoice.allCases.enumerated() {
       let item = NSMenuItem(
@@ -339,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     clear.frame = NSRect(x: 460, y: 620, width: 150, height: 30)
     clear.bezelStyle = .rounded
     view.addSubview(clear)
-    let appearanceHeading = NSTextField(labelWithString: "App icon")
+    let appearanceHeading = NSTextField(labelWithString: "Companion")
     appearanceHeading.font = .systemFont(ofSize: 16, weight: .semibold)
     appearanceHeading.frame = NSRect(x: 24, y: 578, width: 300, height: 24)
     view.addSubview(appearanceHeading)
@@ -355,13 +355,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       button.imageScaling = .scaleProportionallyDown
       button.font = .systemFont(ofSize: 13, weight: .medium)
       button.tag = index
-      button.setAccessibilityLabel("Use \(choice.title) app icon")
+      button.setAccessibilityLabel("Use \(choice.title) companion")
       view.addSubview(button)
       iconButtons.append(button)
     }
     let iconHint = NSTextField(
       labelWithString:
-        "Changes the menu-bar and application icon. Your desktop avatar stays the same.")
+        "Changes your desktop companion and icons. Your choice is saved automatically.")
     iconHint.font = .systemFont(ofSize: 11)
     iconHint.textColor = .secondaryLabelColor
     iconHint.frame = NSRect(x: 24, y: 432, width: 602, height: 20)
@@ -412,6 +412,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
   func applyIconSelection() {
     let selected = AppIconChoice.selected()
+    panel.pet.selectAppearance(selected)
     status.button?.image = AppIconAppearance.image(for: selected, size: 20)
     NSApp.applicationIconImage = AppIconAppearance.image(for: selected, size: 256)
     for (index, choice) in AppIconChoice.allCases.enumerated() {

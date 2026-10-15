@@ -8,6 +8,16 @@ final class AvatarAssets {
   let manifest: AvatarManifest
   let sheet: NSImage?
   let menuIcon: NSImage?
+  private var characters: [AppIconChoice: NSImage] = [:]
+  func character(for choice: AppIconChoice) -> NSImage? {
+    if let cached = characters[choice] { return cached }
+    guard choice != .ember,
+      let url = resourceDirectory?.appendingPathComponent("Characters/\(choice.rawValue).png"),
+      let image = NSImage(contentsOf: url)
+    else { return nil }
+    characters[choice] = image
+    return image
+  }
   private init() {
     let root = Bundle.main.resourceURL?.appendingPathComponent("Pet")
     // Do not evaluate Bundle.module: its generated accessor traps when SwiftPM's

@@ -8,6 +8,15 @@ extension Bundle { static var module: Bundle { .main } }
     NSApp.setActivationPolicy(.prohibited)
     let panel = PetPanel()
     panel.setVisible(true)
+    for choice in AppIconChoice.allCases {
+      panel.pet.selectAppearance(choice)
+      precondition(panel.pet.appearanceChoice == choice)
+      precondition(panel.pet.frameIndex == 0)
+      if choice != .ember {
+        precondition(panel.pet.avatar.character(for: choice) != nil, "Missing desktop artwork")
+      }
+    }
+    panel.pet.selectAppearance(.ember)
     defer {
       panel.setVisible(false)
       panel.petPanel.close()
