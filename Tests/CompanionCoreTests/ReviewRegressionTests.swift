@@ -26,11 +26,11 @@ final class ReviewRegressionTests: XCTestCase {
     store.apply(try XCTUnwrap(ClaudeEventAdapter.decode(data: b)))
     XCTAssertEqual(store.queue.visible.count, 1)
   }
-  func testRecoveryEnrichesResumedSessionAndMarksUnknownIdentity() {
+  func testRecoveryPreservesReportedStateAndResetsResumedSession() {
     var s = SessionStore()
     s.apply(SessionEvent(sessionID: "a", kind: .working, project: "/tmp"))
     s.reconcile(discovered: [], identity: { _ in nil })
-    XCTAssertEqual(s.sessions["a"]?.state, .unknown)
+    XCTAssertEqual(s.sessions["a"]?.state, .working)
     s.sessions["a"]?.state = .disconnected
     let live = SessionSnapshot(
       id: "a", state: .unknown, project: "/tmp", updated: Date.distantPast, message: nil, host: nil,

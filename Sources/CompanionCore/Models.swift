@@ -107,11 +107,16 @@ extension SessionStore {
   public mutating func reconcile(discovered: [SessionSnapshot], identity: (Int32) -> String?) {
     for live in discovered {
       if var current = sessions[live.id] {
+        // Discovering previously unavailable metadata is not a new session.
+        let changedPID = current.pid != nil && live.pid != nil && current.pid != live.pid
+        let changedBirth =
+          current.processStart != nil && live.processStart != nil
+          && current.processStart != live.processStart
         let resumed =
-          current.pid != live.pid || current.processStart != live.processStart
+          changedPID || changedBirth
           || [.closed, .disconnected].contains(current.state)
-        current.pid = live.pid
-        current.processStart = live.processStart
+        current.pid = live.pid ?? current.pid
+        current.processStart = live.processStart ?? current.processStart
         if resumed {
           current.tty = nil
           current.host = nil
@@ -131,9 +136,8 @@ extension SessionStore {
           s.state = .disconnected
           queue.resolve(sessionID: id)
         }
-      } else if s.state != .needsInput {
-        s.state = .unknown
       }
+      // A hook-reported state remains authoritative when process metadata is absent.
       sessions[id] = s
     }
   }

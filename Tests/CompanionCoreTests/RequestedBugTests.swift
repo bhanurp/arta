@@ -80,3 +80,18 @@ extension RequestedBugTests {
     XCTAssertEqual(queue.allMessages.count, 35)
   }
 }
+
+extension RequestedBugTests {
+  func testDiscoveryEnrichesMissingIdentityWithoutResettingReportedState() {
+    for state in [SessionState.working, .needsInput] {
+      var store = SessionStore()
+      store.apply(SessionEvent(sessionID: "a", kind: state, project: "/tmp"))
+      let live = SessionSnapshot(
+        id: "a", state: .unknown, project: "/tmp", updated: .distantPast,
+        message: nil, host: nil, pid: 42, processStart: "birth", transcript: nil)
+      store.reconcile(discovered: [live], identity: { _ in "birth" })
+      XCTAssertEqual(store.sessions["a"]?.state, state)
+      XCTAssertEqual(store.sessions["a"]?.pid, 42)
+    }
+  }
+}
