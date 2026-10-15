@@ -99,7 +99,8 @@ final class PetView: NSView {
 final class NotificationCard: NSVisualEffectView {
   var open: (() -> Void)?
   var dismiss: (() -> Void)?
-  init(notice: Notice, frame: NSRect) {
+  var toggleStack: (() -> Void)?
+  init(notice: Notice, frame: NSRect, stackTitle: String? = nil) {
     super.init(frame: frame)
     material = .hudWindow
     blendingMode = .behindWindow
@@ -131,7 +132,8 @@ final class NotificationCard: NSVisualEffectView {
     preview.lineBreakMode = .byWordWrapping
     preview.cell?.truncatesLastVisibleLine = true
     toolTip = notice.message
-    preview.frame = NSRect(x: 12, y: 6, width: frame.width - 24, height: 32)
+    preview.frame = NSRect(
+      x: 12, y: 6, width: frame.width - (stackTitle == nil ? 24 : 132), height: 32)
     addSubview(preview)
     let close = NSButton(title: "×", target: self, action: #selector(closeCard))
     close.isBordered = false
@@ -141,10 +143,23 @@ final class NotificationCard: NSVisualEffectView {
     close.toolTip = "Dismiss notification"
     close.setAccessibilityLabel("Dismiss notification")
     addSubview(close)
+    if let stackTitle {
+      let toggle = NSButton(title: stackTitle, target: self, action: #selector(toggleCards))
+      toggle.bezelStyle = .inline
+      toggle.font = .systemFont(ofSize: 11, weight: .medium)
+      toggle.frame = NSRect(x: frame.width - 116, y: 9, width: 104, height: 24)
+      toggle.setAccessibilityLabel(stackTitle)
+      addSubview(toggle)
+    }
   }
+  @objc func toggleCards() { toggleStack?() }
   required init?(coder: NSCoder) { fatalError() }
   override func mouseUp(with event: NSEvent) { open?() }
   @objc func closeCard() { dismiss?() }
+}
+final class StackBackingView: NSVisualEffectView {
+  var expand: (() -> Void)?
+  override func mouseUp(with event: NSEvent) { expand?() }
 }
 final class TraySurface: NSView {
   override func draw(_ dirtyRect: NSRect) {
@@ -279,6 +294,14 @@ final class PetPanel: NSObject {
   let petPanel: FloatingPanel
   let pet = PetView(frame: NSRect(x: 31, y: 50, width: 130, height: 130))
   var cards: [FloatingPanel] = []
+  var stackBackings: [FloatingPanel] = []
+  var stackCollapsed = true
+  private var lastNotices: [Notice] = []
+  private var pendingCount = 0
+  var displayedNoticeIDs: Set<UUID> {
+    guard petPanel.isVisible && trayExpanded else { return [] }
+    return Set((stackCollapsed ? Array(lastNotices.prefix(1)) : lastNotices).map(\.id))
+  }
   var particlePanels: [FloatingPanel] = []
   var signature = ""
   var onOpen: ((Notice) -> Void)?
@@ -409,10 +432,25 @@ final class PetPanel: NSObject {
   }
   func positionCards() {
     let screen = petPanel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
+    let shown = stackCollapsed ? Array(cards.prefix(1)) + stackBackings : cards
     let layout = PanelLayout(
-      screen: screen, petOrigin: petPanel.frame.origin, count: trayExpanded ? cards.count : 0)
+      screen: screen, petOrigin: petPanel.frame.origin,
+      count: trayExpanded ? shown.count : 0, collapsed: stackCollapsed)
     petPanel.setFrame(layout.pet, display: true)
-    for (p, rect) in zip(cards, layout.cards) { p.setFrame(rect, display: true) }
+    for (panel, rect) in zip(shown, layout.cards) { panel.setFrame(rect, display: true) }
+  }
+  func updateCardVisibility() {
+    for panel in cards + stackBackings { panel.orderOut(nil) }
+    guard petPanel.isVisible && trayExpanded else { return }
+    let shown = stackCollapsed ? Array(cards.prefix(1)) + stackBackings : cards
+    for panel in shown.reversed() { panel.orderFrontRegardless() }
+  }
+  func toggleStack() {
+    stackCollapsed.toggle()
+    signature = ""
+    render(
+      lastNotices, state: pet.row, unread: bell.unread, commits: commitsToday,
+      working: hasWorkingSession, pending: pendingCount)
   }
   @objc func showCommitsToday() {
     let alert = NSAlert()
@@ -422,8 +460,13 @@ final class PetPanel: NSObject {
     NSApp.activate(ignoringOtherApps: true)
     alert.runModal()
   }
-  func render(_ notices: [Notice], state: Int, unread: Int, commits: Int = 0, working: Bool = false)
-  {
+  func render(
+    _ notices: [Notice], state: Int, unread: Int, commits: Int = 0, working: Bool = false,
+    pending: Int = 0
+  ) {
+    lastNotices = notices
+    pendingCount = pending
+    let total = notices.count + pending
     hasWorkingSession = working
     hasNotices = !notices.isEmpty
     updateActivityIndicator()
@@ -439,24 +482,54 @@ final class PetPanel: NSObject {
     pet.needsDisplay = true
     bell.unread = unread
     bell.toolTip = "\(unread) unread notifications — click to \(trayExpanded ? "hide":"show")"
-    let key = notices.map { $0.id.uuidString + $0.message }.joined()
+    let key = notices.map { $0.id.uuidString + $0.message }.joined() + "-\(total)-\(stackCollapsed)"
     guard key != signature else { return }
     signature = key
-    for panel in cards { panel.close() }
+    for panel in cards + stackBackings { panel.close() }
     cards = []
-    for n in notices {
+    stackBackings = []
+    for (index, n) in notices.enumerated() {
       let panel = FloatingPanel(
         contentRect: NSRect(x: 0, y: 0, width: 430, height: 64),
         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
       configure(panel)
-      let card = NotificationCard(notice: n, frame: NSRect(x: 0, y: 0, width: 430, height: 64))
+      let stackTitle =
+        index == 0 && total > 1
+        ? (stackCollapsed ? "+\(total - 1) more ▾" : "Collapse ▴") : nil
+      let card = NotificationCard(
+        notice: n, frame: NSRect(x: 0, y: 0, width: 430, height: 64), stackTitle: stackTitle)
+      card.toggleStack = { [weak self] in self?.toggleStack() }
       card.open = { [weak self] in self?.onOpen?(n) }
       card.dismiss = { [weak self] in self?.onDismiss?(n.id) }
       panel.contentView = card
       cards.append(panel)
     }
+    if !notices.isEmpty && total > 1 {
+      for index in 0..<min(2, total - 1) {
+        let backing = FloatingPanel(
+          contentRect: NSRect(x: 0, y: 0, width: 410, height: 64),
+          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        configure(backing)
+        let view = StackBackingView(frame: NSRect(x: 0, y: 0, width: 410, height: 64))
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        view.appearance = NSAppearance(named: .darkAqua)
+        view.wantsLayer = true
+        view.layer?.cornerRadius = 18
+        view.layer?.borderWidth = 1
+        view.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+        view.expand = { [weak self] in self?.toggleStack() }
+        view.setAccessibilityElement(true)
+        view.setAccessibilityRole(.button)
+        view.setAccessibilityLabel("Expand notifications")
+        backing.contentView = view
+        backing.alphaValue = index == 0 ? 0.88 : 0.7
+        stackBackings.append(backing)
+      }
+    }
     positionCards()
-    if petPanel.isVisible && trayExpanded { for panel in cards { panel.orderFrontRegardless() } }
+    updateCardVisibility()
   }
   @objc func startNewChat() { onNewChat?() }
   @objc func showSessions() { onSessions?() }
@@ -465,11 +538,7 @@ final class PetPanel: NSObject {
     bell.setAccessibilityLabel(trayExpanded ? "Hide notifications" : "Show notifications")
     onToggle?()
     positionCards()
-    if trayExpanded && petPanel.isVisible {
-      for panel in cards { panel.orderFrontRegardless() }
-    } else {
-      for panel in cards { panel.orderOut(nil) }
-    }
+    updateCardVisibility()
   }
   func emitGitActivities(_ activities: [GitActivity]) {
     guard petPanel.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
@@ -552,7 +621,7 @@ final class PetPanel: NSObject {
     trayExpanded = true
     bell.setAccessibilityLabel("Hide notifications")
     positionCards()
-    for panel in cards { panel.orderFrontRegardless() }
+    updateCardVisibility()
   }
   func animate() {
     updateActivityIndicator()
@@ -578,7 +647,7 @@ final class PetPanel: NSObject {
   func setVisible(_ show: Bool) {
     if show {
       petPanel.orderFrontRegardless()
-      if trayExpanded { for panel in cards { panel.orderFrontRegardless() } }
+      updateCardVisibility()
     } else {
       for panel in particlePanels { panel.close() }
       particlePanels.removeAll()
@@ -588,7 +657,7 @@ final class PetPanel: NSObject {
       pet.hovering = false
       pet.frameIndex = 0
       petPanel.orderOut(nil)
-      for panel in cards { panel.orderOut(nil) }
+      for panel in cards + stackBackings { panel.orderOut(nil) }
     }
   }
 }

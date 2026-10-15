@@ -244,7 +244,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.queue.pruneHistory(now: now)
       }
     }
-    store.queue.tick(seconds: dt, visible: panel.petPanel.isVisible && panel.trayExpanded)
+    store.queue.tick(
+      seconds: dt, visible: panel.petPanel.isVisible && panel.trayExpanded,
+      displayedIDs: panel.displayedNoticeIDs)
     refresh()
     if tickCount % 10 == 0 {
       do { try Persistence.save(store, to: stateFile) } catch {
@@ -264,7 +266,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.pet.badge = "\(working) working · \(store.queue.pending.count) queued"
     panel.render(
       store.queue.visible, state: state, unread: store.queue.allMessages.filter { !$0.read }.count,
-      commits: store.dailyCommits?.count() ?? 0, working: working > 0)
+      commits: store.dailyCommits?.count() ?? 0, working: working > 0,
+      pending: store.queue.pending.count)
     workingMenuItem.title = "Working: \(working)"
     inputMenuItem.title = "Needs your input: \(waiting)"
     status.button?.toolTip = "Arta · \(working) working · \(waiting) need you"

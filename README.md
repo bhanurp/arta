@@ -204,3 +204,7 @@ Use v0.1.3 or newer for automatic updates. The v0.1.1 release has no download; v
 ### Choose your companion
 
 Open **Sessions & settings → Companion** to choose Ember, Byte, or Kitsu. You can also use **Appearance → Companion** in the menu bar. The selection applies immediately and is remembered after restart. The selection changes the desktop companion, menu-bar icon, and running application icon together. All three companions use four-frame state animations with the same hover and attention timing, quiet working poses, and Reduce Motion support.
+
+### Collapsible notifications
+
+Multiple notifications initially appear as one layered stack. Use **+N more** to expand up to your visible-message limit, and **Collapse** to tuck them back. Dismissing the front card reveals the next message. Cards hidden behind the stack do not consume their display timer; input requests remain until resolved or dismissed.
