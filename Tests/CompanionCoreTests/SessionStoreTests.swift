@@ -28,6 +28,6 @@ final class SessionStoreTests: XCTestCase {
   func testHistoryBound() {
     var q = NotificationQueue()
     for n in 0..<110 { q.enqueue(Notice(sessionID: "\(n)", title: "title", message: "message")) }
-    XCTAssertEqual(q.history.count, 100)
+    XCTAssertEqual(q.history.count, 30)
   }
 }

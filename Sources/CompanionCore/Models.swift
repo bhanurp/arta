@@ -15,6 +15,8 @@ public struct SessionEvent: Codable {
   public var pid: Int32?
   public var processStart: String?
   public var transcript: String?
+  public var resolvesInput: Bool?
+  public var requestCompleted: Bool?
   public var gitActivities: [GitActivity]?
   public var requestID: String?
   public init(
@@ -62,15 +64,26 @@ public struct SessionStore: Codable {
     guard old == nil || event.time >= old!.updated else { return false }
     let sameProcess =
       event.pid == nil || (event.pid == old?.pid && event.processStart == old?.processStart)
+    let unrelatedResult =
+      event.kind == .working && old?.requestID != nil && event.requestID != nil
+      && event.requestID != old?.requestID
+    let matchingCompletion =
+      event.requestCompleted == true && event.requestID != nil && event.requestID == old?.requestID
+    let preserveInput =
+      old?.state == .needsInput && [.idle, .working, .unknown].contains(event.kind)
+      && ((event.resolvesInput == false && !matchingCompletion) || unrelatedResult)
     let snapshot = SessionSnapshot(
-      id: event.sessionID, state: event.kind, project: event.project, updated: event.time,
-      message: event.message ?? old?.message, host: event.host ?? (sameProcess ? old?.host : nil),
+      id: event.sessionID, state: preserveInput ? .needsInput : event.kind, project: event.project,
+      updated: event.time,
+      message: preserveInput ? old?.message : event.message ?? old?.message,
+      host: event.host ?? (sameProcess ? old?.host : nil),
       tty: event.tty ?? (sameProcess ? old?.tty : nil), pid: event.pid ?? old?.pid,
       processStart: event.processStart ?? old?.processStart,
       transcript: event.transcript ?? old?.transcript,
-      requestID: event.kind == .needsInput ? (event.requestID ?? old?.requestID) : nil)
+      requestID: preserveInput
+        ? old?.requestID : event.kind == .needsInput ? (event.requestID ?? old?.requestID) : nil)
     sessions[event.sessionID] = snapshot
-    if event.kind != .needsInput { queue.resolve(sessionID: event.sessionID) }
+    if snapshot.state != .needsInput { queue.resolve(sessionID: event.sessionID) }
     let sameRequest =
       event.kind == .needsInput && old?.state == .needsInput
       && (event.requestID == nil || event.requestID == old?.requestID)
@@ -118,7 +131,7 @@ extension SessionStore {
           s.state = .disconnected
           queue.resolve(sessionID: id)
         }
-      } else {
+      } else if s.state != .needsInput {
         s.state = .unknown
       }
       sessions[id] = s

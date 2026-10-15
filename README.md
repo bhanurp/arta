@@ -59,7 +59,7 @@ Successful commits release an orange icon; pushes release a teal arrow. They dri
 
 **Requires macOS 14 or later and an installed, signed-in copy of Claude Code.**
 
-1. Download **Arta-v0.1.3-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
+1. Download **Arta-v0.1.4-macos-arm64.zip** from the [latest release](https://github.com/bhanurp/arta/releases/latest) (Apple Silicon), or build from source below. Newer development builds are available as artifacts from successful [CI runs](https://github.com/bhanurp/arta/actions/workflows/ci.yml).
 2. Extract the archive, open **Arta.app**, and click **Install & Start**.
 3. Approve macOS Automation and Accessibility requests to enable new Terminal tabs. Permission setup can be retried from the menu bar.
 4. Start a Claude Code session. Arta picks up its events automatically.
@@ -127,7 +127,7 @@ Hover and attention animations respect **macOS Reduce Motion**. Dismissing a not
 Arta does not upload conversations or require an API key. Tracking stays on your Mac. The helper records session metadata, selected response/request text, and source-app identifiers.
 
 - Response previews are capped at 12,000 characters.
-- History retains up to 100 notifications, with seven-day cleanup; live input requests are separate.
+- Arta retains the newest 30 ordinary notifications, with seven-day cleanup. Unresolved input requests are exempt from both limits and stay until answered, the session ends, or you dismiss them. Opening an input bubble does not dismiss it.
 - App data and the helper live in `~/Library/Application Support/ClaudeCompanion/`.
 - Hook configuration lives in `~/.claude/settings.json`, or the `CLAUDE_CONFIG_DIR` inherited by Arta. Backups are stored alongside it.
 

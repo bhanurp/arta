@@ -58,6 +58,8 @@ public enum ClaudeEventAdapter {
     {
       event.gitActivities = GitActivity.detect(command)
     }
+    event.resolvesInput = name == "UserPromptSubmit"
+    event.requestCompleted = ["PostToolUse", "PostToolUseFailure"].contains(name)
     event.transcript = p["transcript_path"] as? String
     event.requestID = p["tool_use_id"] as? String
     if kind == .finished && event.message == nil, let path = event.transcript {

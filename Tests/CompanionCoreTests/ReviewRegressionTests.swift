@@ -48,11 +48,12 @@ final class ReviewRegressionTests: XCTestCase {
         created: old))
     q.enqueue(Notice(sessionID: "done", title: "Done", message: "Old", created: old))
     q.pruneHistory(now: Date())
-    XCTAssertTrue(q.history.isEmpty)
+    XCTAssertEqual(q.history.map(\.sessionID), ["input"])
     XCTAssertEqual(q.allMessages.filter { $0.needsInput }.count, 1)
     for i in 0..<105 {
       q.enqueue(Notice(sessionID: String(i), title: "Queued", message: "Message"))
     }
-    XCTAssertTrue(q.allMessages.contains { $0.sessionID == "0" })
+    XCTAssertFalse(q.allMessages.contains { $0.sessionID == "0" })
+    XCTAssertEqual(q.allMessages.filter { !$0.needsInput }.count, 30)
   }
 }

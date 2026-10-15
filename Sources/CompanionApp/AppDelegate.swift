@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do { store = try Persistence.load(stateFile) } catch {
       diagnostic = "Previous state was damaged and preserved for recovery."
     }
+    store.queue.pruneHistory(now: Date())
     limit = max(
       1,
       UserDefaults.standard.integer(forKey: "visibleLimit") == 0
@@ -481,9 +482,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     openSession(n.sessionID) { [weak self] opened, message in
       guard let self else { return }
-      if opened {
+      if opened && !n.needsInput {
         self.store.queue.dismiss(id: n.id)
-      } else {
+      } else if !opened {
         self.store.queue.updateMessage(id: n.id, message: message)
       }
       self.refresh()

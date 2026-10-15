@@ -27,11 +27,10 @@ public struct NotificationQueue: Codable {
   public var limit = 2
   public init() {}
   public mutating func enqueue(_ n: Notice) {
-    guard !history.contains(where: { $0.id == n.id }) else { return }
+    guard !allMessages.contains(where: { $0.id == n.id }) else { return }
     history.append(n)
-    history = Array(
-      history.filter { $0.created > n.created.addingTimeInterval(-604800) }.suffix(100))
     pending.append(n)
+    pruneHistory(now: n.created)
     fill()
   }
   private mutating func fill() {
@@ -39,7 +38,7 @@ public struct NotificationQueue: Codable {
     while visible.count < limit && !pending.isEmpty { visible.append(pending.removeFirst()) }
   }
   public mutating func resolve(sessionID: String) {
-    let ids = (visible + pending).filter { $0.sessionID == sessionID && $0.needsInput }.map(\.id)
+    let ids = allMessages.filter { $0.sessionID == sessionID && $0.needsInput }.map(\.id)
     for id in ids { dismiss(id: id) }
   }
   public mutating func dismiss(id: UUID) {
@@ -68,7 +67,17 @@ public struct NotificationQueue: Codable {
 }
 extension NotificationQueue {
   public mutating func pruneHistory(now: Date) {
-    history = Array(history.filter { $0.created > now.addingTimeInterval(-604800) }.suffix(100))
+    let messages = allMessages
+    let protected = Set(messages.filter { $0.needsInput && !$0.read }.map(\.id))
+    let ordinary = messages.filter {
+      !protected.contains($0.id) && $0.created > now.addingTimeInterval(-604800)
+    }
+    .sorted { $0.created > $1.created }
+    let keep = protected.union(ordinary.prefix(30).map(\.id))
+    visible.removeAll { !keep.contains($0.id) }
+    pending.removeAll { !keep.contains($0.id) }
+    history.removeAll { !keep.contains($0.id) }
+    fill()
   }
   public var allMessages: [Notice] {
     var ids = Set<UUID>()

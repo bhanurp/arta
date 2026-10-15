@@ -29,6 +29,19 @@ extension Bundle { static var module: Bundle { .main } }
     precondition(opened)
     panel.toggleTray()
     precondition(!panel.cards[0].isVisible)
+    if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+      panel.emitGitActivities([.commit, .push])
+      CATransaction.flush()
+      RunLoop.current.run(until: Date().addingTimeInterval(0.35))
+      precondition(panel.particlePanels.count == 1)
+      let particles = panel.particlePanels[0].contentView!.layer!.sublayers!.filter { $0.name == "git-particle" }
+      precondition(particles.count == 2)
+      for particle in particles {
+        guard let shown = particle.presentation() else { fatalError("Droplet has no presentation layer") }
+        print("Droplet opacity: \(shown.opacity), height: \(shown.position.y)")
+        precondition(shown.opacity > 0.1 && shown.position.y > 16, "Droplet must be visible and rise")
+      }
+    }
     print("Recovered input auto-pops; bubble routes to its callback; bell hides the stack.")
   }
 }
