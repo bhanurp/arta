@@ -74,73 +74,17 @@ final class PetView: NSView {
     needsDisplay = true
   }
   let avatar = AvatarAssets.current
-  var sheet: NSImage? { avatar.sheet }
   override func draw(_ dirtyRect: NSRect) {
-    if let character = avatar.character(for: appearanceChoice) {
-      drawCharacter(character)
-      return
-    }
-    guard let sheet, let cg = sheet.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-      return
-    }
-    let w = CGFloat(cg.width) / CGFloat(avatar.manifest.columns)
-    let h = CGFloat(cg.height) / CGFloat(avatar.manifest.rows)
     let rowName = ["idle", "working", "waiting", "finished"][displayRow]
     let spriteRow = avatar.manifest.states.firstIndex(of: rowName) ?? 0
-    if let crop = cg.cropping(
-      to: CGRect(
-        x: CGFloat(frameIndex % avatar.manifest.framesPerState) * w, y: CGFloat(spriteRow) * h,
-        width: w, height: h)
-    ) {
-      NSGraphicsContext.current?.imageInterpolation =
-        avatar.manifest.interpolation == "smooth" ? .high : .none
-      NSImage(cgImage: crop, size: NSSize(width: w, height: h)).draw(in: bounds)
-      if displayRow == 1 && avatar.manifest.workingOverlay == "laptop" {
-        // A quiet laptop pose, drawn in front of the character's lower body.
-        let screen = NSRect(x: 24, y: 14, width: 82, height: 48)
-        NSColor(calibratedWhite: 0.16, alpha: 1).setFill()
-        NSBezierPath(roundedRect: screen, xRadius: 5, yRadius: 5).fill()
-        NSColor(calibratedWhite: 0.48, alpha: 1).setStroke()
-        NSBezierPath(roundedRect: screen.insetBy(dx: 1, dy: 1), xRadius: 4, yRadius: 4).stroke()
-        NSColor(calibratedRed: 0.95, green: 0.57, blue: 0.35, alpha: 1).setFill()
-        NSBezierPath(ovalIn: NSRect(x: 61, y: 34, width: 8, height: 8)).fill()
-        NSColor(calibratedWhite: 0.55, alpha: 1).setFill()
-        NSBezierPath(
-          roundedRect: NSRect(x: 18, y: 10, width: 94, height: 6), xRadius: 3, yRadius: 3
-        ).fill()
-      }
-
-    }
-  }
-  private func drawCharacter(_ character: NSImage) {
-    NSGraphicsContext.saveGraphicsState()
-    let transform = NSAffineTransform()
-    let attention = hovering || notificationActive || row == 2
-    let moving = attention && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-    let elapsed = Date().timeIntervalSince(
-      hovering ? hoverStarted : notificationActive ? notificationStarted : attentionStarted)
-    let phase = elapsed * 5
-    transform.translateX(by: bounds.midX, yBy: bounds.midY + (moving ? abs(sin(phase)) * 4 : 0))
-    if moving { transform.rotate(byDegrees: sin(phase) * 4) }
-    transform.translateX(by: -bounds.midX, yBy: -bounds.midY)
-    transform.concat()
-    NSGraphicsContext.current?.imageInterpolation = .high
-    character.draw(in: bounds.insetBy(dx: 7, dy: 7))
-    NSGraphicsContext.restoreGraphicsState()
-    if displayRow == 1 {
-      // Working remains quiet, with the same laptop cue across companions.
-      NSColor(calibratedWhite: 0.16, alpha: 1).setFill()
-      NSBezierPath(roundedRect: NSRect(x: 24, y: 10, width: 82, height: 44), xRadius: 5, yRadius: 5)
-        .fill()
-      NSColor(calibratedWhite: 0.48, alpha: 1).setStroke()
-      NSBezierPath(roundedRect: NSRect(x: 25, y: 11, width: 80, height: 42), xRadius: 4, yRadius: 4)
-        .stroke()
-      NSColor.systemMint.setFill()
-      NSBezierPath(ovalIn: NSRect(x: 61, y: 29, width: 8, height: 8)).fill()
-      NSColor(calibratedWhite: 0.55, alpha: 1).setFill()
-      NSBezierPath(roundedRect: NSRect(x: 18, y: 7, width: 94, height: 5), xRadius: 2, yRadius: 2)
-        .fill()
-    }
+    guard
+      let frame = avatar.frame(
+        for: appearanceChoice, row: spriteRow,
+        index: frameIndex % avatar.manifest.framesPerState)
+    else { return }
+    NSGraphicsContext.current?.imageInterpolation =
+      avatar.manifest.interpolation == "smooth" ? .high : .none
+    frame.draw(in: bounds)
   }
   override func mouseDown(with event: NSEvent) { dragged = false }
   override func mouseDragged(with event: NSEvent) {

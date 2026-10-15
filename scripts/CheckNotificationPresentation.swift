@@ -12,8 +12,23 @@ extension Bundle { static var module: Bundle { .main } }
       panel.pet.selectAppearance(choice)
       precondition(panel.pet.appearanceChoice == choice)
       precondition(panel.pet.frameIndex == 0)
+      panel.pet.hovering = true
+      panel.pet.hoverStarted = Date().addingTimeInterval(-0.4)
+      panel.animate()
+      precondition(panel.pet.frameIndex == (NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 1))
+      panel.pet.hovering = false
+      panel.pet.row = 2
+      panel.pet.attentionStarted = Date().addingTimeInterval(-7)
+      panel.animate()
+      precondition(panel.pet.frameIndex == 0, "Attention must settle after six seconds for every companion")
+      panel.pet.row = 0
       if choice != .ember {
-        precondition(panel.pet.avatar.character(for: choice) != nil, "Missing desktop artwork")
+        precondition(panel.pet.avatar.spriteSheet(for: choice) != nil, "Missing animated artwork")
+        for row in 0..<4 {
+          let frames = (0..<4).map { panel.pet.avatar.frame(for: choice, row: row, index: $0)?.tiffRepresentation }
+          precondition(frames.allSatisfy { $0 != nil })
+          precondition(Set(frames.compactMap { $0 }).count == 4, "Animation must have four distinct frames")
+        }
       }
     }
     panel.pet.selectAppearance(.ember)

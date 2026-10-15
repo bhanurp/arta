@@ -8,14 +8,61 @@ final class AvatarAssets {
   let manifest: AvatarManifest
   let sheet: NSImage?
   let menuIcon: NSImage?
-  private var characters: [AppIconChoice: NSImage] = [:]
-  func character(for choice: AppIconChoice) -> NSImage? {
-    if let cached = characters[choice] { return cached }
-    guard choice != .ember,
-      let url = resourceDirectory?.appendingPathComponent("Characters/\(choice.rawValue).png"),
+  private struct SpriteLayout: Decodable {
+    let rows: [Int]
+    let columns: [Int]
+    func valid(width: Int, height: Int) -> Bool {
+      rows.count == 5 && columns.count == 5 && rows.first == 0 && rows.last == height
+        && columns.first == 0 && columns.last == width
+        && zip(rows, rows.dropFirst()).allSatisfy { $0 < $1 }
+        && zip(columns, columns.dropFirst()).allSatisfy { $0 < $1 }
+    }
+  }
+  private var animatedSheets: [AppIconChoice: NSImage] = [:]
+  private var frames: [String: NSImage] = [:]
+  private var layouts: [AppIconChoice: SpriteLayout] = [:]
+  func spriteSheet(for choice: AppIconChoice) -> NSImage? {
+    if choice == .ember { return sheet }
+    if let cached = animatedSheets[choice] { return cached }
+    guard let url = resourceDirectory?.appendingPathComponent("Animations/\(choice.rawValue).png"),
       let image = NSImage(contentsOf: url)
     else { return nil }
-    characters[choice] = image
+    animatedSheets[choice] = image
+    return image
+  }
+  func frame(for choice: AppIconChoice, row: Int, index: Int) -> NSImage? {
+    guard (0..<manifest.rows).contains(row), (0..<manifest.framesPerState).contains(index) else {
+      return nil
+    }
+    let key = "\(choice.rawValue)-\(row)-\(index)"
+    if let cached = frames[key] { return cached }
+    let source = spriteSheet(for: choice) ?? sheet
+    guard let cg = source?.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+      return nil
+    }
+    if choice != .ember && layouts[choice] == nil,
+      let url = resourceDirectory?.appendingPathComponent("Animations/\(choice.rawValue).json"),
+      let data = try? Data(contentsOf: url),
+      let layout = try? JSONDecoder().decode(SpriteLayout.self, from: data),
+      layout.valid(width: cg.width, height: cg.height)
+    {
+      layouts[choice] = layout
+    }
+    let rect: CGRect
+    if let layout = layouts[choice] {
+      // Explicit cell boundaries preserve complete silhouettes in illustrated atlases.
+      rect = CGRect(
+        x: layout.columns[index], y: layout.rows[row],
+        width: layout.columns[index + 1] - layout.columns[index],
+        height: layout.rows[row + 1] - layout.rows[row])
+    } else {
+      let w = CGFloat(cg.width) / CGFloat(manifest.columns)
+      let h = CGFloat(cg.height) / CGFloat(manifest.rows)
+      rect = CGRect(x: CGFloat(index) * w, y: CGFloat(row) * h, width: w, height: h)
+    }
+    guard let crop = cg.cropping(to: rect) else { return nil }
+    let image = NSImage(cgImage: crop, size: rect.size)
+    frames[key] = image
     return image
   }
   private init() {

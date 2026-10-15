@@ -203,4 +203,4 @@ Use v0.1.3 or newer for automatic updates. The v0.1.1 release has no download; v
 
 ### Choose your companion
 
-Open **Sessions & settings → Companion** to choose Ember, Byte, or Kitsu. You can also use **Appearance → Companion** in the menu bar. The selection applies immediately and is remembered after restart. The selection changes the desktop companion, menu-bar icon, and running application icon together. Byte and Kitsu use gentle attention motion and a quiet laptop pose while working.
+Open **Sessions & settings → Companion** to choose Ember, Byte, or Kitsu. You can also use **Appearance → Companion** in the menu bar. The selection applies immediately and is remembered after restart. The selection changes the desktop companion, menu-bar icon, and running application icon together. All three companions use four-frame state animations with the same hover and attention timing, quiet working poses, and Reduce Motion support.
