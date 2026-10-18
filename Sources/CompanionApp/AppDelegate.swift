@@ -4,9 +4,12 @@ import CompanionCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
   let updates = AppUpdates()
   let navigator = SessionNavigator()
-  var observer = TranscriptObserver()
-  var observedPaths: [String: URL] = [:]
-  var hookSessions = Set<String>()
+  var tracking: TrackingCoordinator?
+  var registry = IntegrationRegistry.bundled
+  let integrationSetup = IntegrationSetup()
+  var selectedIntegrationID = "claude-code"
+  var integrationPicker: NSPopUpButton?
+  var enableButton: NSButton?
   var store = SessionStore()
   var panel: PetPanel!
   var status: NSStatusItem!
@@ -23,22 +26,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   var installed = false
   var tickCount = 0
   var lastTick = Date()
-  var lastEvent: Date?
   var limit = 2
   let root = AppPaths.root
-  var settings: URL { AppPaths.config.appendingPathComponent("settings.json") }
   var helper: URL { root.appendingPathComponent("CompanionHook") }
-  var stateFile: URL { root.appendingPathComponent("state.json") }
   func applicationDidFinishLaunching(_ notification: Notification) {
-    do { store = try Persistence.load(stateFile) } catch {
-      diagnostic = "Previous state was damaged and preserved for recovery."
+    do {
+      registry = try integrationSetup.loadRegistry()
+      diagnostic = registry.diagnostics.joined(separator: "\n")
+      let coordinator = try TrackingCoordinator(root: root)
+      store = try coordinator.load()
+      tracking = coordinator
+    } catch {
+      diagnostic =
+        "Tracking could not start. Existing data was preserved: \(error.localizedDescription)"
     }
     store.queue.pruneHistory(now: Date())
     limit = max(
       1,
       UserDefaults.standard.integer(forKey: "visibleLimit") == 0
         ? 2 : UserDefaults.standard.integer(forKey: "visibleLimit"))
-    installed = HookInstaller.installed(settingsURL: settings, executableURL: helper)
+    installed = registry.manifests.contains { integrationSetup.installed($0.id) }
     if installed {
       do {
         let source = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/CompanionHook")
@@ -79,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     menu.addItem(workingMenuItem)
     menu.addItem(inputMenuItem)
     menu.addItem(.separator())
-    add(menu, "New Claude Code chat…", #selector(newChat))
+    add(menu, "New agent session…", #selector(newChat))
     add(menu, "Set up Terminal permissions…", #selector(setUpTerminalPermissions))
     add(menu, "Sessions & settings…", #selector(showSessions))
     let appearance = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
@@ -105,7 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     menu.addItem(.separator())
     updates.start(in: menu)
     menu.addItem(.separator())
-    add(menu, "Disable tracking", #selector(disable))
+    add(menu, "Disable selected integration…", #selector(disable))
     add(menu, "Quit", #selector(quit))
     status.menu = menu
     store.queue.visible.removeAll { $0.sessionID == "demo" }
@@ -142,24 +149,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     showSessions()
   }
   @objc func newChat() {
-    let candidates = [
-      FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin/claude")
-        .path,
-      "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
-    ]
-    guard
-      let executable = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }
-      ),
-      NSWorkspace.shared.urlForApplication(
-        withBundleIdentifier: "com.apple.Terminal") != nil
+    guard let manifest = chooseNewSessionIntegration() else { return }
+    guard let executable = registry.executable(for: manifest.id),
+      NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") != nil
     else {
-      diagnostic = "Install Claude Code and Terminal to start a new chat."
+      diagnostic = "Install \(manifest.name) and Terminal to start a new session."
       showSessions()
       return
     }
     let picker = NSOpenPanel()
-    picker.title = "New Claude Code chat"
-    picker.message = "Choose the folder Claude should work in."
+    picker.title = "New \(manifest.name) session"
+    picker.message = "Choose the folder \(manifest.name) should work in."
     picker.prompt = "Start chat"
     picker.canChooseFiles = false
     picker.canChooseDirectories = true
@@ -172,7 +172,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       let directory = root.appendingPathComponent("launchers")
       try AppPaths.privateDirectory(directory)
-      let script = directory.appendingPathComponent("New Claude Chat-\(UUID().uuidString).command")
+      let script = directory.appendingPathComponent(
+        "New Agent Session-\(UUID().uuidString).command")
       try NewChatLauncher.script(executable: executable, directory: folder.path).write(
         to: script, atomically: true, encoding: .utf8)
       try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
@@ -191,72 +192,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     menu.addItem(item)
   }
   func discover() {
-    store.reconcile(discovered: SessionDiscovery.discover(), identity: ProcessIdentity.start)
+    if let result = tracking?.poll(
+      store: &store, registry: registry, setup: integrationSetup, discover: true)
+    {
+      panel.emitGitActivities(result.activities)
+      if result.attention { panel.revealForAttention() }
+      if !result.diagnostics.isEmpty { diagnostic = result.diagnostics.joined(separator: "\n") }
+    }
   }
   func poll() {
     let now = Date()
     let dt = min(1, now.timeIntervalSince(lastTick))
     lastTick = now
-    if installed {
-      do {
-        let inbox = EventInbox(directory: root.appendingPathComponent("inbox"))
-        let events = try inbox.pendingEvents()
-        if !events.isEmpty {
-          var updated = store
-          let activities = events.filter {
-            !store.seen.contains($0.id) && now.timeIntervalSince($0.time) < 10
-          }.flatMap { $0.gitActivities ?? [] }
-          var shouldReveal = false
-          for e in events { if updated.apply(e) { shouldReveal = true } }
-          try Persistence.save(updated, to: stateFile)
-          store = updated
-          panel.emitGitActivities(activities)
-          if shouldReveal { panel.revealForAttention() }
-          try inbox.acknowledge(events)
-          for e in events { hookSessions.insert(e.sessionID) }
-          lastEvent = now
-        }
-      } catch {
-        diagnostic = "Tracking events are retained for retry: \(error.localizedDescription)"
-      }
-      for session in store.sessions.values where ![.closed, .disconnected].contains(session.state) {
-        if observedPaths[session.id] == nil {
-          observedPaths[session.id] =
-            session.transcript.map { URL(fileURLWithPath: $0) }
-            ?? TranscriptObserver.locate(
-              sessionID: session.id, projects: AppPaths.config.appendingPathComponent("projects"))
-        }
-        if let url = observedPaths[session.id],
-          let updates = try? observer.read(
-            url: url, sessionID: session.id, project: session.project,
-            since: session.state == .working ? session.updated : nil)
-        {
-          for event in updates {
-            if store.applyTranscript(event, hasHooks: hookSessions.contains(session.id)) {
-              panel.revealForAttention()
-            }
-          }
-        }
-      }
-      tickCount += 1
-      if tickCount % 10 == 0 {
-        discover()
-        store.queue.pruneHistory(now: now)
-      }
+    tickCount += 1
+    if let result = tracking?.poll(
+      store: &store, registry: registry, setup: integrationSetup, discover: tickCount % 10 == 0)
+    {
+      panel.emitGitActivities(result.activities)
+      if result.attention { panel.revealForAttention() }
+      if !result.diagnostics.isEmpty { diagnostic = result.diagnostics.joined(separator: "\n") }
     }
     store.queue.tick(
       seconds: dt, visible: panel.petPanel.isVisible && panel.trayExpanded,
       displayedIDs: panel.displayedNoticeIDs)
+    if tickCount % 10 == 0 { store.queue.pruneHistory(now: now) }
     refresh()
     if tickCount % 10 == 0 {
-      do { try Persistence.save(store, to: stateFile) } catch {
+      do { try tracking?.database.save(store) } catch {
         diagnostic = "Could not save companion state: \(error.localizedDescription)"
       }
     }
   }
   func refresh() {
     store.queue.setVisibleLimit(min(limit, panel.availableCount))
-    let sessions = Array(store.sessions.values)
+    let enabled = Set(registry.manifests.filter { integrationSetup.installed($0.id) }.map(\.id))
+    let sessions = store.sessions.values.filter {
+      enabled.contains($0.integrationID ?? "claude-code")
+    }
     let waiting = sessions.filter { $0.state == .needsInput }.count
     let working = sessions.filter { $0.state == .working }.count
     let completed = store.queue.visible.contains { notice in
@@ -278,11 +250,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
   @objc func toggle() { panel.setVisible(!panel.petPanel.isVisible) }
   @objc func quit() {
-    try? Persistence.save(store, to: stateFile)
+    try? tracking?.database.save(store)
     NSApp.terminate(nil)
   }
   func applicationWillTerminate(_ notification: Notification) {
-    try? Persistence.save(store, to: stateFile)
+    try? tracking?.database.save(store)
   }
   @objc func sample() {
     store.queue.enqueue(
@@ -310,22 +282,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
     let w = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 650, height: 730),
+      contentRect: NSRect(x: 0, y: 0, width: 650, height: 760),
       styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
     w.title = "Arta"
     w.appearance = NSAppearance(named: .darkAqua)
     w.isReleasedWhenClosed = false
-    w.minSize = NSSize(width: 650, height: 730)
+    w.minSize = NSSize(width: 650, height: 760)
     w.center()
     window = w
     let view = NSView(frame: w.contentLayoutRect)
     w.contentView = view
-    let heading = NSTextField(labelWithString: "Your Claude sessions, close at hand.")
+    let heading = NSTextField(labelWithString: "Your coding sessions, close at hand.")
     heading.font = .boldSystemFont(ofSize: 23)
-    heading.frame = NSRect(x: 24, y: 670, width: 600, height: 32)
+    heading.frame = NSRect(x: 24, y: 698, width: 600, height: 32)
     view.addSubview(heading)
+    let integrations = NSPopUpButton(frame: NSRect(x: 24, y: 658, width: 260, height: 30))
+    integrations.addItems(withTitles: registry.manifests.map(\.name))
+    integrations.target = self
+    integrations.action = #selector(changeIntegration(_:))
+    integrationPicker = integrations
+    view.addSubview(integrations)
     let install = NSButton(
-      title: "Install & Start", target: self, action: #selector(installAndStart))
+      title: "Enable tracking", target: self, action: #selector(installAndStart))
+    enableButton = install
     install.bezelStyle = .rounded
     install.frame = NSRect(x: 24, y: 618, width: 155, height: 34)
     view.addSubview(install)
@@ -442,10 +421,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .foregroundColor: NSColor.labelColor,
           ]))
     }
-    append(installed ? "Tracking enabled\n" : "Tracking is not installed\n", bold: true)
-    append(
-      lastEvent.map { "Last event: \($0.formatted(date:.omitted,time:.standard))\n" }
-        ?? "Waiting for the first live hook event.\n")
+    for manifest in registry.manifests {
+      let enabled = integrationSetup.installed(manifest.id)
+      let recent = tracking?.lastEvents[manifest.id]
+      let state =
+        !enabled
+        ? "Not enabled" : recent == nil ? "Configured · waiting for an event" : "Receiving events"
+      append("\(manifest.name): \(state)\n", bold: true)
+      if enabled && recent == nil { append(manifest.setupNote + "\n") }
+    }
     if !diagnostic.isEmpty { append(diagnostic + "\n") }
     append(
       "\(store.queue.pending.count) pending messages · \(store.queue.history.filter{!$0.read}.count) unread\n\n"
@@ -454,7 +438,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       $0.updated > $1.updated
     }
     if active.isEmpty {
-      append("No tracked sessions yet. Start Claude Code in your usual terminal or editor.\n\n")
+      append(
+        "No tracked sessions yet. Enable an integration, then start your agent in its usual terminal or editor.\n\n"
+      )
     }
     for s in active {
       text.append(
@@ -467,7 +453,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 "companion://session/\(s.id.addingPercentEncoding(withAllowedCharacters:.urlPathAllowed) ?? s.id)"
             )!,
           ]))
-      append("  ·  \(stateLabel(s.state))\n\(s.project)\n\(s.message ?? "")\n\n")
+      append(
+        "  ·  \(registry.manifest(for: s.integrationID ?? "claude-code")?.name ?? "Agent") ·  \(stateLabel(s.state))\n\(s.project)\n\(s.message ?? "")\n\n"
+      )
     }
     append("Recent messages\n", bold: true)
     for n in store.queue.allMessages {
@@ -497,63 +485,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
   @objc func clearHistory() {
     store.queue.history = []
-    refresh()
-  }
-  @objc func disable() {
-    do {
-      try HookInstaller.uninstall(settingsURL: settings, executableURL: helper)
-      installed = false
-      diagnostic = "Tracking disabled. Existing Claude settings were preserved."
-    } catch { diagnostic = error.localizedDescription }
-    showSessions()
-    refresh()
-  }
-  @objc func installAndStart() {
-    do {
-      let candidates = [
-        "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin/claude")
-          .path,
-      ]
-      guard candidates.contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-        throw SetupError.missingClaude
-      }
-      guard
-        let source = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent(
-          "CompanionHook"), FileManager.default.fileExists(atPath: source.path)
-      else { throw SetupError.missingHelper }
-      // Install the application before enabling hooks; the stable helper is independent of the launch location.
-      let applications = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
-        "Applications")
-      try FileManager.default.createDirectory(at: applications, withIntermediateDirectories: true)
-      let destination = applications.appendingPathComponent("Arta.app")
-      if Bundle.main.bundleURL.standardizedFileURL != destination.standardizedFileURL {
-        let staged = applications.appendingPathComponent(
-          ".ClaudeCompanion-\(UUID().uuidString).app")
-        try FileManager.default.copyItem(at: Bundle.main.bundleURL, to: staged)
-        if FileManager.default.fileExists(atPath: destination.path) {
-          _ = try FileManager.default.replaceItemAt(destination, withItemAt: staged)
-        } else {
-          try FileManager.default.moveItem(at: staged, to: destination)
-        }
-      }
-      try SetupCoordinator.installHelper(source: source, root: root, settings: settings)
-      installed = true
-      discover()
-      diagnostic =
-        "Installed in Applications. New sessions connect automatically. Existing sessions may need /hooks or a restart to load new hooks; their status remains unknown until observed."
-      panel.setVisible(true)
-      if Bundle.main.bundleURL.standardizedFileURL == destination.standardizedFileURL {
-        DispatchQueue.main.async { [weak self] in self?.setUpTerminalPermissions() }
-      } else {
-        // Obtain consent for the installed copy, not a temporary build location.
-        let launch = NSWorkspace.OpenConfiguration()
-        launch.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: destination, configuration: launch) { _, error in
-          if error == nil { DispatchQueue.main.async { NSApp.terminate(nil) } }
-        }
-      }
-    } catch { diagnostic = error.localizedDescription }
     refresh()
   }
   func openNotice(_ n: Notice) {

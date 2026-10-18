@@ -7,6 +7,7 @@ public struct Notice: Codable, Identifiable, Equatable {
   public var message: String
   public var needsInput: Bool
   public var created: Date
+  public var requestID: String?
   public var remaining: Double = 10
   public var read = false
   public init(

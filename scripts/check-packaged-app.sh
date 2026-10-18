@@ -7,14 +7,16 @@ BUILD="$(swift build -c release ${ARTA_TARGET_ARCH:+--arch "$ARTA_TARGET_ARCH"} 
 RESOURCE="$BUILD/ClaudeCompanion_CompanionApp.bundle"
 HIDDEN="$RESOURCE.packaging-check"
 CHECK_PID=""
+CHECK_DATA="$(mktemp -d)"
 cleanup() {
   if [[ -n "$CHECK_PID" ]]; then kill "$CHECK_PID" 2>/dev/null || true; fi
   if [[ -d "$HIDDEN" ]]; then mv "$HIDDEN" "$RESOURCE"; fi
+  rm -rf "$CHECK_DATA"
 }
 trap cleanup EXIT
 if [[ -e "$HIDDEN" ]]; then echo "Previous packaging check has not restored its resources" >&2; exit 1; fi
 if [[ -d "$RESOURCE" ]]; then mv "$RESOURCE" "$HIDDEN"; fi
-dist/Arta.app/Contents/MacOS/CompanionApp --demo > dist/packaged-launch.log 2>&1 &
+ARTA_DATA_DIR="$CHECK_DATA" CLAUDE_CONFIG_DIR="$CHECK_DATA/claude" CODEX_HOME="$CHECK_DATA/codex" XDG_CONFIG_HOME="$CHECK_DATA/config" dist/Arta.app/Contents/MacOS/CompanionApp --demo > dist/packaged-launch.log 2>&1 &
 CHECK_PID=$!
 sleep 3
 if ! kill -0 "$CHECK_PID" 2>/dev/null; then

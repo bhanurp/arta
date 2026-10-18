@@ -47,6 +47,8 @@ jobs:
           persist-credentials: false
       - name: Tests with coverage
         run: swift test --enable-code-coverage -Xswiftc -warnings-as-errors
+      - name: OpenCode plugin contract
+        run: node scripts/test-opencode-plugin.mjs
       - name: Native notification presentation
         run: scripts/check-notifications.sh
       - name: Package development app

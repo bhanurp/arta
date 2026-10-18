@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 public enum ClaudeEventAdapter {
@@ -62,6 +63,11 @@ public enum ClaudeEventAdapter {
     event.requestCompleted = ["PostToolUse", "PostToolUseFailure"].contains(name)
     event.transcript = p["transcript_path"] as? String
     event.requestID = p["tool_use_id"] as? String
+    if let input = p["tool_input"] as? [String: Any] {
+      let encoded = try JSONSerialization.data(withJSONObject: input, options: [.sortedKeys])
+      event.requestCorrelationID = SHA256.hash(data: Data(tool.utf8) + encoded)
+        .map { String(format: "%02x", $0) }.joined()
+    }
     if kind == .finished && event.message == nil, let path = event.transcript {
       event.message = try? TranscriptPreview.finalResponse(
         at: URL(fileURLWithPath: path), sessionID: id)

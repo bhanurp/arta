@@ -1,0 +1,8 @@
+{
+  "id": "example-agent",
+  "name": "Example Agent",
+  "protocolVersion": 1,
+  "capabilities": ["liveActivity", "completionNotifications", "inputRequests"],
+  "executableName": null,
+  "setupNote": "Run the example bridge to verify the integration."
+}

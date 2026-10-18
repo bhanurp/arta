@@ -2,7 +2,10 @@ import Foundation
 
 public enum AppPaths {
   public static var root: URL {
-    FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+    if let path = ProcessInfo.processInfo.environment["ARTA_DATA_DIR"] {
+      return URL(fileURLWithPath: path)
+    }
+    return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
       "Library/Application Support/ClaudeCompanion")
   }
   public static var config: URL {
@@ -23,10 +26,12 @@ public struct EventInbox {
     let files = try FileManager.default.contentsOfDirectory(
       at: directory, includingPropertiesForKeys: nil
     ).filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
-    if files.count >= 1000 {
-      for f in files.prefix(files.count - 999) { try? FileManager.default.removeItem(at: f) }
-      try? Data("Some events were dropped while the companion was offline.".utf8).write(
+    if files.count >= 20000 {
+      try? Data(
+        "The inbox is full. Open Arta to resume tracking. Existing events were preserved.".utf8
+      ).write(
         to: directory.appendingPathComponent("overflow.txt"), options: .atomic)
+      throw IntegrationError.unavailable("Arta's event inbox is full.")
     }
     let url = directory.appendingPathComponent(
       "\(Int64(e.time.timeIntervalSince1970*1_000_000))-\(e.id).json")
@@ -100,7 +105,8 @@ public enum ProcessIdentity {
       return s.isEmpty ? nil : s
     } catch { return nil }
   }
-  public static func claudeAncestor() -> Int32? {
+  public static func claudeAncestor() -> Int32? { agentAncestor(named: "claude") }
+  public static func agentAncestor(named name: String) -> Int32? {
     var pid = getppid()
     for _ in 0..<6 {
       let p = Process()
@@ -115,7 +121,9 @@ public enum ProcessIdentity {
         p.waitUntilExit()
         let parts = s.split(maxSplits: 1, whereSeparator: { $0.isWhitespace })
         guard parts.count == 2 else { return nil }
-        if parts[1].lowercased().contains("claude") { return pid }
+        if URL(fileURLWithPath: String(parts[1])).lastPathComponent.lowercased().contains(name) {
+          return pid
+        }
         guard let parent = Int32(parts[0]), parent > 1 else { return nil }
         pid = parent
       } catch { return nil }

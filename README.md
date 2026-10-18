@@ -4,7 +4,7 @@
 
 ### Quiet company. Timely nudges.
 
-An illustrated desktop companion for your Claude Code sessions.
+An illustrated desktop companion for your coding-agent sessions.
 
 [![CI](https://github.com/bhanurp/arta/actions/workflows/ci.yml/badge.svg)](https://github.com/bhanurp/arta/actions/workflows/ci.yml)
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-222222?logo=apple)
@@ -13,7 +13,7 @@ An illustrated desktop companion for your Claude Code sessions.
 
 ![Arta with completed and waiting-for-input notifications](docs/media/arta-overview.png)
 
-**Keep working. Arta will let you know when Claude needs you.**
+**Keep working. Arta will let you know when your agent needs you.**
 
 [See it in action](#a-little-company-while-you-work) · [Get started](#get-started) · [Agent installation](#ask-your-agent-to-install-arta) · [Build from source](#build-from-source)
 
@@ -21,7 +21,7 @@ An illustrated desktop companion for your Claude Code sessions.
 
 ## A little company while you work
 
-Arta floats above your other apps and keeps an eye on your local Claude Code sessions. It sits quietly at a laptop while work is happening, greets you when you hover, and animates briefly when a response finishes or needs your input.
+Arta floats above your other apps and keeps an eye on your local coding sessions. It sits quietly at a laptop while work is happening, greets you when you hover, and animates briefly when a response finishes or needs your input.
 
 <div align="center">
 <img src="docs/media/arta-companion.gif" alt="Arta working quietly, dancing on hover, and showing an input request" width="640">
@@ -54,6 +54,17 @@ Successful commits release an orange icon; pushes release a teal arrow. They dri
 </div>
 
 <sub>Documentation visuals are staged previews with sample data, rendered from Arta’s native AppKit views. The Git animation illustrates the effect; timing and available height vary on screen. No private sessions are shown.</sub>
+
+## Multiple agents (development branch)
+
+Choose **Claude Code**, **Codex**, or **OpenCode** in Sessions & settings, then click **Enable tracking**.
+The same pet, notification stack and session counters serve every enabled integration. New session
+creation lets you choose an agent before selecting its project folder.
+
+Codex requires reviewing Arta's hooks in its `/hooks` screen. OpenCode uses its v1 plugin API and
+existing sessions need restarting; its adapter currently observes permission requests and lifecycle
+events, without Git tracking. These integrations are in the source build; the v0.1.6 download below
+still provides Claude-only tracking. See [integration coverage and extension guide](docs/INTEGRATIONS.md).
 
 ## Get started
 

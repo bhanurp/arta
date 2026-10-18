@@ -52,20 +52,34 @@ public struct TranscriptObserver {
           let question = (input?["questions"] as? [[String: Any]])?.compactMap {
             $0["question"] as? String
           }.joined(separator: "\n")
-          result.append(
-            SessionEvent(
-              sessionID: sessionID, kind: .needsInput, time: time, project: project,
-              message: question ?? "Claude needs your review"))
+          var request = SessionEvent(
+            sessionID: sessionID, kind: .needsInput, time: time, project: project,
+            message: question ?? "Claude needs your review")
+          request.requestID = tool["id"] as? String
+          request.resolvesInput = false
+          result.append(request)
           continue
         } else {
           state = .working
         }
       }
       if let state {
-        result.append(
-          SessionEvent(
-            sessionID: sessionID, kind: state, time: time, project: project,
-            message: text.isEmpty ? nil : String(text.prefix(12000))))
+        var event = SessionEvent(
+          sessionID: sessionID, kind: state, time: time, project: project,
+          message: text.isEmpty ? nil : String(text.prefix(12000)))
+        let results = content.filter { $0["type"] as? String == "tool_result" }
+        event.resolvesInput = type == "user" && results.isEmpty
+        if !results.isEmpty {
+          for toolResult in results {
+            var resolved = event
+            resolved.id = UUID()
+            resolved.requestID = toolResult["tool_use_id"] as? String
+            resolved.requestCompleted = true
+            result.append(resolved)
+          }
+        } else {
+          result.append(event)
+        }
       }
     }
     return result

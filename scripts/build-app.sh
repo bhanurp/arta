@@ -21,6 +21,8 @@ fi
 ditto .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework "$APP/Contents/Frameworks/Sparkle.framework"
 rm -rf "$APP/Contents/MacOS/ClaudeCompanion_CompanionApp.bundle" "$APP/Contents/Resources/ClaudeCompanion_CompanionApp.bundle"
 cp -R Sources/CompanionApp/Resources/Pet "$APP/Contents/Resources/"
+mkdir -p "$APP/Contents/Resources/Integrations"
+cp Sources/CompanionApp/Resources/Integrations/* "$APP/Contents/Resources/Integrations/"
 codesign --force --sign - "$APP/Contents/MacOS/CompanionHook"
 codesign --force --deep --sign - "$APP"
 echo "$APP"
