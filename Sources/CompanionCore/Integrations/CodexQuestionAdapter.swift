@@ -61,7 +61,10 @@ enum CodexQuestionAdapter {
     return object?["accepted"] as? Bool == false
   }
 
-  private struct Reply: Decodable { let questionItemId: String }
+  private struct Reply: Decodable {
+    let questionItemId: String
+    let answer: String
+  }
   private struct ReplyIdentity: Decodable {
     let call: String
     let index: Int

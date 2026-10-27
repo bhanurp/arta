@@ -160,9 +160,9 @@ extension Bundle { static var module: Bundle { .main } }
     }
     print("Verification pet: pid=\(ProcessInfo.processInfo.processIdentifier), origin=\(panel.petPanel.frame.origin), opacity=\(panel.petPanel.alphaValue)")
     precondition(panel.petPanel.alphaValue == 0, "Verification must not show a duplicate desktop pet")
-    precondition((panel.cards + panel.stackBackings + panel.particlePanels).allSatisfy { $0.alphaValue == 0 }, "Verification notification and fountain windows must stay invisible")
     let stackNotices = (0..<3).map { Notice(sessionID: "stack-\($0)", title: "Task \($0)", message: "Waiting for your input", needsInput: true) }
     panel.render(Array(stackNotices.prefix(2)), state: 2, unread: 3, pending: 1)
+    precondition((panel.cards + panel.stackBackings + panel.particlePanels).allSatisfy { $0.alphaValue == 0 }, "Rendered verification notification and fountain windows must stay invisible")
     panel.revealForAttention()
     precondition(panel.stackCollapsed)
     precondition(panel.cards[0].isVisible && !panel.cards[1].isVisible)

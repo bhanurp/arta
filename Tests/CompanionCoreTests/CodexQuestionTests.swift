@@ -130,9 +130,26 @@ final class CodexQuestionTests: XCTestCase {
       let value = try JSONSerialization.data(withJSONObject: identity)
       let body = try JSONSerialization.data(withJSONObject: [
         [
-          "questionItemId": String(decoding: value, as: UTF8.self)
+          "questionItemId": String(decoding: value, as: UTF8.self), "answer": "Selected",
         ]
       ])
+      let prompt =
+        "<send_user_message_question_reply>" + String(decoding: body, as: UTF8.self)
+        + "</send_user_message_question_reply>"
+      try apply(payload("UserPromptSubmit", prompt: prompt), to: &store)
+      XCTAssertEqual(pending(store).count, 2)
+    }
+  }
+
+  func testQuestionReplyRequiresAnAnswer() throws {
+    for answer in [nil, NSNull(), 42] as [Any?] {
+      var store = SessionStore()
+      try apply(payload("PreToolUse"), to: &store)
+      let identity = try JSONSerialization.data(
+        withJSONObject: ["request_user_input_async", "call-question", 0])
+      var item: [String: Any] = ["questionItemId": String(decoding: identity, as: UTF8.self)]
+      item["answer"] = answer
+      let body = try JSONSerialization.data(withJSONObject: [item])
       let prompt =
         "<send_user_message_question_reply>" + String(decoding: body, as: UTF8.self)
         + "</send_user_message_question_reply>"

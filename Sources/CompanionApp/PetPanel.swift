@@ -658,6 +658,7 @@ final class PetPanel: NSObject {
         let backing = FloatingPanel(
           contentRect: NSRect(x: 0, y: 0, width: 410, height: 64),
           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        backing.alphaValue = index == 0 ? 0.88 : 0.7
         configure(backing)
         let view = StackBackingView(frame: NSRect(x: 0, y: 0, width: 410, height: 64))
         view.material = .hudWindow
@@ -673,7 +674,6 @@ final class PetPanel: NSObject {
         view.setAccessibilityRole(.button)
         view.setAccessibilityLabel("Expand notifications")
         backing.contentView = view
-        backing.alphaValue = index == 0 ? 0.88 : 0.7
         stackBackings.append(backing)
       }
     }

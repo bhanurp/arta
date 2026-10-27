@@ -18,7 +18,13 @@ if [[ -e "$HIDDEN" ]]; then echo "Previous packaging check has not restored its 
 if [[ -d "$RESOURCE" ]]; then mv "$RESOURCE" "$HIDDEN"; fi
 ARTA_DATA_DIR="$CHECK_DATA" CLAUDE_CONFIG_DIR="$CHECK_DATA/claude" CODEX_HOME="$CHECK_DATA/codex" XDG_CONFIG_HOME="$CHECK_DATA/config" dist/Arta.app/Contents/MacOS/CompanionApp --demo --verify-presentation > dist/packaged-launch.log 2>&1 &
 CHECK_PID=$!
-sleep 3
+# Initialization can be slower on a cold machine. Wait up to 30 seconds for
+# confirmation, checking process health on every iteration.
+for attempt in {1..150}; do
+  if ! kill -0 "$CHECK_PID" 2>/dev/null; then break; fi
+  if /usr/bin/grep -q 'Verification presentation stays off the desktop.' dist/packaged-launch.log; then break; fi
+  sleep 0.2
+done
 if ! kill -0 "$CHECK_PID" 2>/dev/null; then
   cat dist/packaged-launch.log
   echo 'Packaged app failed to launch without build-machine resources.' >&2
