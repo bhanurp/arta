@@ -57,9 +57,13 @@ public final class AgentDatabase {
       Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 1)))
     )
   }
+  /// Loads or migrates durable state, invalidating continuous coverage after restart.
   public func load(migrating legacyURL: URL) throws -> SessionStore {
     if let (version, data) = try stored() {
       guard [1, 2].contains(version) else { throw IntegrationError.unsupportedVersion }
+      // Seed only the current version; a v1 payload still requires its migration
+      // transaction even when its JSON bytes happen to match the new encoding.
+      if version == 2 { lastWritten = data }
       var store = try JSONDecoder().decode(SessionStore.self, from: data)
       store.background = store.background ?? BackgroundWork()
       for key in store.background!.scopes.keys { store.background!.scopes[key]?.continuous = false }
