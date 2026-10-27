@@ -29,7 +29,7 @@ Arta floats above your other apps and keeps an eye on your local coding sessions
 
 ### The right nudge, at the right time
 
-- **Today’s commits at a glance.** The compact hover bar shows a monochrome Git diamond with a badge for today’s successful commits from tracked sessions. The count survives restarts and resets at local midnight; pushes do not increment it.
+- **Today’s commits at a glance.** The compact hover bar shows a monochrome Git diamond with a badge for today’s successful commits from tracked sessions. The count survives restarts and resets at local midnight; pushes do not increment it. Click the Git button to browse commit SHAs, repository names and branches in a resizable window. Switch between today and all recorded commits, and use the copy icon beside any SHA to copy its full value. Only commits observed by Arta are included; unavailable metadata is labeled “Not supplied”.
 - **A small menu-bar presence.** A static Arta pet icon replaces the long status text. Hover over it for working and waiting counts; click it for the menu.
 - **One place for your sessions.** See which sessions are working or waiting for you.
 - **Notifications that make room.** Two cards appear by default. Choose your own limit; dismiss one to bring the next queued message into view.

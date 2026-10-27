@@ -51,6 +51,8 @@ jobs:
         run: node scripts/test-opencode-plugin.mjs
       - name: Native notification presentation
         run: scripts/check-notifications.sh
+      - name: Git commit history presentation
+        run: scripts/check-git-commits.sh
       - name: Background work presentation
         run: scripts/check-background-work.sh
       - name: Observation failure isolation

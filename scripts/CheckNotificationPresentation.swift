@@ -41,6 +41,10 @@ extension Bundle { static var module: Bundle { .main } }
     precondition(!resultLayout.cards[0].intersects(resultLayout.cards[1]))
     precondition(resultLayout.cards.allSatisfy { CGRect(x: 0, y: 0, width: 800, height: 700).contains($0) })
     let panel = PetPanel()
+    var gitOpened = false
+    panel.onGit = { gitOpened = true }
+    panel.gitCount.performClick(nil)
+    precondition(gitOpened, "Git button must open commit history")
     panel.setVisible(true)
     var webNotice = Notice(sessionID: "web-result", title: "Preview", message: "Response finished")
     webNotice.results = [ArtifactPublication(id: "preview", title: "Preview", kind: .web, location: "https://first.example/report")]

@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   let updates = AppUpdates()
   let navigator = SessionNavigator()
   let backgroundController = BackgroundWorkController()
+  let gitCommitsController = GitCommitsController()
   let artifactActions = ArtifactActions()
   let briefingMenuItem = NSMenuItem(
     title: "Return briefing…", action: #selector(showBriefing), keyEquivalent: "")
@@ -74,6 +75,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       try? FileManager.default.createSymbolicLink(
         atPath: alias.path, withDestinationPath: helper.path)
     }
+    gitCommitsController.readRecords = { [weak self] in self?.store.gitRecords ?? [] }
+    gitCommitsController.onCopySHA = { sha in
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(sha, forType: .string)
+    }
+    panel.onGit = { [weak self] in self?.gitCommitsController.show() }
     panel.onNewChat = { [weak self] in self?.newChat() }
     panel.onSessions = { [weak self] in self?.showSessions() }
     panel.onToggle = { [weak self] in
@@ -280,6 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.pet.toolTip =
       "\(working) working · \(waiting) need input · \(store.queue.pending.count) pending messages. Click for sessions."
     if window?.isVisible == true { updateList() }
+    gitCommitsController.refreshIfVisible()
   }
   @objc func toggle() { panel.setVisible(!panel.petPanel.isVisible) }
   @objc func quit() {
