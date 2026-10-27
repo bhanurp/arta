@@ -28,6 +28,7 @@ public enum GitCommitHistory {
     }
   }
 
+  /// Treats absent or whitespace-only metadata as unavailable.
   private static func nonempty(_ value: String?) -> String? {
     guard let text = value?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
       return nil

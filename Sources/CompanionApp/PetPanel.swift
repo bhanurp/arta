@@ -566,6 +566,7 @@ final class PetPanel: NSObject {
       working: hasWorkingSession, pending: pendingCount, briefing: lastBriefing,
       visibleLimit: lastVisibleLimit)
   }
+  /// Opens commit history through the app-owned Git action.
   @objc func showCommitsToday() { onGit?() }
   func render(
     _ notices: [Notice], state: Int, unread: Int, commits: Int = 0, working: Bool = false,

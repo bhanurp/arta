@@ -3,12 +3,14 @@ import XCTest
 @testable import CompanionCore
 
 final class GitCommitHistoryTests: XCTestCase {
+  /// Creates a commit receipt with known repository, SHA, and branch metadata.
   func record(_ id: String, at date: Date, activity: GitActivity = .commit) -> AgentGitRecord {
     AgentGitRecord(
       id: id, sessionID: "session", project: "/work/Arta", sha: "0123456789abcdef",
       branch: "feature/commits", activity: activity, created: date)
   }
 
+  /// Verifies displayed metadata is retained and push receipts are excluded.
   func testWindowRowsExposeRecordedShaRepositoryAndBranchAndExcludePushes() {
     let now = Date()
     let rows = GitCommitHistory.rows([
@@ -21,6 +23,7 @@ final class GitCommitHistoryTests: XCTestCase {
     XCTAssertEqual(rows.first?.branch, "feature/commits")
   }
 
+  /// Checks local-midnight filtering and inclusion of older retained receipts.
   func testTodayUsesLocalCalendarAndAllRecordedIncludesOlderCommits() {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 19800)!
@@ -32,6 +35,7 @@ final class GitCommitHistoryTests: XCTestCase {
     XCTAssertEqual(GitCommitHistory.rows(records).map(\.id), ["new", "old"])
   }
 
+  /// Verifies newest-first ordering with deterministic ties.
   func testNewestFirstAndStableTieOrder() {
     let now = Date()
     let rows = GitCommitHistory.rows([
@@ -40,6 +44,7 @@ final class GitCommitHistoryTests: XCTestCase {
     XCTAssertEqual(rows.map(\.id), ["a", "b", "old"])
   }
 
+  /// Checks honest missing-value labels and preserves distinct repository paths.
   func testMissingMetadataIsNotInventedAndSameNamedRepositoriesStayDistinct() {
     let now = Date()
     var unknown = record("unknown", at: now)

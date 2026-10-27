@@ -2,6 +2,7 @@ import AppKit
 import CompanionCore
 
 private final class GitCommitsWindow: NSWindow {
+  /// Closes the history window when the responder chain handles Escape.
   override func cancelOperation(_ sender: Any?) { performClose(sender) }
 }
 
@@ -16,6 +17,7 @@ final class GitCommitsController: NSObject, NSTableViewDataSource, NSTableViewDe
   private let empty = NSTextField(labelWithString: "")
   private var rows: [GitCommitRow] = []
 
+  /// Reuses the history window and refreshes its records before bringing it forward.
   func show() {
     if window == nil { createWindow() }
     refreshContents()
@@ -23,10 +25,12 @@ final class GitCommitsController: NSObject, NSTableViewDataSource, NSTableViewDe
     NSApp.activate(ignoringOtherApps: true)
   }
 
+  /// Updates an open history window without creating or reopening one.
   func refreshIfVisible() {
     if window?.isVisible == true { refreshContents() }
   }
 
+  /// Builds the native history table, time-range selector, and close controls once.
   private func createWindow() {
     let w = GitCommitsWindow(
       contentRect: NSRect(x: 0, y: 0, width: 980, height: 540),
@@ -127,8 +131,10 @@ final class GitCommitsController: NSObject, NSTableViewDataSource, NSTableViewDe
     window = w
   }
 
+  /// Applies the selected local-day or retained-history filter.
   @objc private func changeScope() { refreshContents() }
 
+  /// Reloads changed receipts while preserving selection by record identity.
   private func refreshContents() {
     let values = GitCommitHistory.rows(
       readRecords?() ?? [], on: scope.selectedSegment == 0 ? Date() : nil)
@@ -148,8 +154,10 @@ final class GitCommitsController: NSObject, NSTableViewDataSource, NSTableViewDe
     empty.isHidden = !rows.isEmpty
   }
 
+  /// Returns the number of commit receipts in the selected scope.
   func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
 
+  /// Builds a metadata cell whose copy action belongs to the displayed receipt.
   func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView?
   {
     guard rows.indices.contains(row), let identifier = tableColumn?.identifier else { return nil }
@@ -159,6 +167,7 @@ final class GitCommitsController: NSObject, NSTableViewDataSource, NSTableViewDe
     }
   }
 
+  /// Routes the Close button and Command-W through the normal window close action.
   @objc private func closeWindow() { window?.performClose(nil) }
 }
 
@@ -167,6 +176,7 @@ private final class GitCommitCell: NSTableCellView {
   private let sha: String?
   private let copySHA: (String) -> Void
 
+  /// Builds a SHA, repository, or branch cell from recorded metadata.
   init(record: GitCommitRow, column: String, copySHA: @escaping (String) -> Void) {
     sha = record.sha
     self.copySHA = copySHA
@@ -229,12 +239,14 @@ private final class GitCommitCell: NSTableCellView {
     ])
   }
 
+  /// Rejects decoding because history cells are constructed programmatically.
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
   private static var copyImage: NSImage {
     NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)!
   }
 
+  /// Copies the full recorded SHA and briefly confirms the action on its button.
   @objc private func copyCommit(_ sender: NSButton) {
     guard let sha else { return }
     copySHA(sha)

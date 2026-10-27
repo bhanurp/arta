@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   var limit = 2
   let root = AppPaths.root
   var helper: URL { root.appendingPathComponent("CompanionHook") }
+  /// Loads tracking state, wires app actions, and starts the companion interface.
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
       registry = try integrationSetup.loadRegistry()
@@ -256,6 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     }
   }
+  /// Refreshes session indicators, notifications, and visible history from current state.
   func refresh() {
     store.refreshNotificationTitles()
     store.refreshBackgroundNotices()

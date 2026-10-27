@@ -2,6 +2,7 @@ import AppKit
 import CompanionCore
 
 @main enum CheckGitCommits {
+  /// Verifies native history presentation and interaction using isolated receipts.
   static func main() throws {
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.prohibited)
@@ -35,14 +36,17 @@ import CompanionCore
     let table = scroll.documentView as! NSTableView
     precondition(table.tableColumns.map { $0.title } == ["Commit SHA", "Repository", "Branch"])
     precondition(table.numberOfRows == 1)
+    /// Reads a displayed cell value from the native table.
     func value(_ column: Int, _ row: Int = 0) -> String {
       (table.view(atColumn: column, row: row, makeIfNecessary: true) as! NSTableCellView).textField!
         .stringValue
     }
     precondition(
       value(0) == String(sha.prefix(12)) && value(1) == "Example" && value(2) == "feature/preview")
+    /// Finds the single inline copy control in a SHA cell.
     func copyButton(_ row: Int) -> NSButton {
       let cell = table.view(atColumn: 0, row: row, makeIfNecessary: true)!
+      /// Collects buttons recursively through native layout containers.
       func buttons(_ view: NSView) -> [NSButton] {
         (view as? NSButton).map { [$0] } ?? view.subviews.flatMap { buttons($0) }
       }

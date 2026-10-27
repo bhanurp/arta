@@ -3,6 +3,7 @@ import CompanionCore
 extension Bundle { static var module: Bundle { .main } }
 
 @main enum CheckNotificationPresentation {
+  /// Verifies native notification, toolbar, and animation behavior without visible test panels.
   static func main() {
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.prohibited)
