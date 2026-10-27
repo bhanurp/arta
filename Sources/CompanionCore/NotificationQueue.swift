@@ -8,6 +8,9 @@ public struct Notice: Codable, Identifiable, Equatable {
   public var needsInput: Bool
   public var created: Date
   public var requestID: String?
+  public var turnID: String?
+  public var verification: VerificationStatus?
+  public var results: [ArtifactPublication]?
   public var remaining: Double = 10
   public var read = false
   public init(
@@ -32,6 +35,10 @@ public struct NotificationQueue: Codable {
     history.append(n)
     pending.append(n)
     pruneHistory(now: n.created)
+    fill()
+  }
+  mutating func enqueueRevealed(_ notice: Notice) {
+    pending.append(notice)
     fill()
   }
   private mutating func fill() {

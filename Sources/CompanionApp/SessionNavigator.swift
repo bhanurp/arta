@@ -15,7 +15,7 @@ final class SessionNavigator {
       let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: host)
     else {
       completion(
-        false, "Source app unavailable. Project: \(session.project) · Session: \(session.id)")
+        false, "Source app unavailable. Project: \(session.project)")
       return
     }
     opening = true

@@ -96,10 +96,19 @@ final class PetView: NSView {
   }
   override func mouseUp(with event: NSEvent) { if !dragged { clicked?() } }
 }
+private enum PetActivitySignal { case commit, push, input }
+
 final class NotificationCard: NSVisualEffectView {
   var open: (() -> Void)?
   var dismiss: (() -> Void)?
   var toggleStack: (() -> Void)?
+  var codexSetupAction: ((String) -> Void)?
+  var result: ((String) -> Void)?
+  var moreResults: (() -> Void)?
+  private var resultIDs: [String] = []
+  static func preferredHeight(_ notice: Notice) -> CGFloat {
+    64 + (notice.verification == nil ? 0 : 24) + ((notice.results ?? []).isEmpty ? 0 : 32)
+  }
   init(notice: Notice, frame: NSRect, stackTitle: String? = nil) {
     super.init(frame: frame)
     material = .hudWindow
@@ -110,8 +119,20 @@ final class NotificationCard: NSVisualEffectView {
     layer?.borderWidth = 1
     layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
     appearance = NSAppearance(named: .darkAqua)
-    let icon = NSTextField(labelWithString: notice.needsInput ? "●" : "✓")
-    icon.textColor = notice.needsInput ? .systemOrange : .systemGreen
+    let symbol =
+      notice.sessionID == "arta:briefing"
+      ? "•"
+      : notice.needsInput
+        ? "?"
+        : notice.verification.map {
+          $0 == .passed ? "✓" : $0 == .failed ? "!" : $0 == .running ? "…" : "○"
+        } ?? "✓"
+    let icon = NSTextField(labelWithString: symbol)
+    icon.textColor =
+      notice.needsInput || notice.verification == .failed
+      ? .systemOrange
+      : notice.verification == nil || notice.verification == .passed
+        ? .systemGreen : .secondaryLabelColor
     icon.font = .boldSystemFont(ofSize: 15)
     icon.frame = NSRect(x: 12, y: frame.height - 25, width: 18, height: 19)
     addSubview(icon)
@@ -121,8 +142,19 @@ final class NotificationCard: NSVisualEffectView {
     title.lineBreakMode = .byTruncatingTail
     title.frame = NSRect(x: 33, y: frame.height - 24, width: frame.width - 69, height: 18)
     addSubview(title)
+    if let verification = notice.verification {
+      let label = NSTextField(labelWithString: verification.label)
+      label.font = .systemFont(ofSize: 11, weight: .medium)
+      label.textColor = verification == .passed ? .systemGreen : .secondaryLabelColor
+      label.frame = NSRect(x: 12, y: frame.height - 43, width: frame.width - 24, height: 15)
+      addSubview(label)
+    }
+    let message =
+      notice.needsInput
+        && !notice.message.localizedCaseInsensitiveContains("needs your input")
+      ? "Needs your input · " + notice.message : notice.message
     let preview = NSTextField(
-      labelWithString: notice.message.replacingOccurrences(of: "\n", with: " "))
+      labelWithString: message.replacingOccurrences(of: "\n", with: " "))
     preview.font = .systemFont(ofSize: 13)
     preview.textColor = .secondaryLabelColor
     preview.maximumNumberOfLines = 2
@@ -131,9 +163,15 @@ final class NotificationCard: NSVisualEffectView {
     preview.cell?.usesSingleLineMode = false
     preview.lineBreakMode = .byWordWrapping
     preview.cell?.truncatesLastVisibleLine = true
-    toolTip = notice.message
+    toolTip =
+      message
+      + (notice.verification.map {
+        " · " + $0.label
+          + ". Only observed evidence is covered; see Evidence & results for missing outcome or file coverage."
+      } ?? "")
     preview.frame = NSRect(
-      x: 12, y: 6, width: frame.width - (stackTitle == nil ? 24 : 132), height: 32)
+      x: 12, y: (notice.results ?? []).isEmpty ? 6 : 38,
+      width: frame.width - (stackTitle == nil ? 24 : 132), height: 32)
     addSubview(preview)
     let close = NSButton(title: "×", target: self, action: #selector(closeCard))
     close.isBordered = false
@@ -143,14 +181,56 @@ final class NotificationCard: NSVisualEffectView {
     close.toolTip = "Dismiss notification"
     close.setAccessibilityLabel("Dismiss notification")
     addSubview(close)
-    if let stackTitle {
+    if notice.sessionID == CodexHookTrust.noticeSessionID {
+      preview.stringValue = "Run /hooks in Codex CLI and review Arta’s hooks."
+      preview.font = .systemFont(ofSize: 10)
+      preview.frame = NSRect(x: 12, y: 27, width: frame.width - 24, height: 13)
+      for (index, label) in ["Copy /hooks", "Check again", "Later"].enumerated() {
+        let button = NSButton(title: label, target: self, action: #selector(setupAction(_:)))
+        button.tag = index
+        button.bezelStyle = .inline
+        button.frame = NSRect(x: 12 + index * 100, y: 2, width: 96, height: 24)
+        addSubview(button)
+      }
+    } else {
+      resultIDs = (notice.results ?? []).prefix(2).map(\.id)
+      for (index, publication) in (notice.results ?? []).prefix(2).enumerated() {
+        let caption =
+          publication.kind == .web
+          ? (URL(string: publication.location)?.host ?? publication.location) : publication.title
+        let button = NSButton(
+          title: "▣ " + ArtifactCatalog.label(caption, maximum: 20), target: self,
+          action: #selector(openResultButton(_:)))
+        button.tag = index
+        button.bezelStyle = .inline
+        button.toolTip = publication.kind == .web ? publication.location : publication.title
+        button.setAccessibilityLabel("Open result " + publication.title)
+        button.frame = NSRect(x: 12 + index * 160, y: 5, width: 154, height: 26)
+        addSubview(button)
+      }
+      if (notice.results ?? []).count > 2 {
+        let more = NSButton(title: "More…", target: self, action: #selector(openMoreResults))
+        more.frame = NSRect(x: 336, y: 5, width: 68, height: 26)
+        more.bezelStyle = .inline
+        addSubview(more)
+      }
+    }
+    if notice.sessionID != CodexHookTrust.noticeSessionID, let stackTitle {
       let toggle = NSButton(title: stackTitle, target: self, action: #selector(toggleCards))
       toggle.bezelStyle = .inline
       toggle.font = .systemFont(ofSize: 11, weight: .medium)
-      toggle.frame = NSRect(x: frame.width - 116, y: 9, width: 104, height: 24)
+      toggle.frame = NSRect(
+        x: frame.width - 116, y: (notice.results ?? []).isEmpty ? 9 : 40, width: 104, height: 24)
       toggle.setAccessibilityLabel(stackTitle)
       addSubview(toggle)
     }
+  }
+  @objc func openResultButton(_ sender: NSButton) {
+    if resultIDs.indices.contains(sender.tag) { result?(resultIDs[sender.tag]) }
+  }
+  @objc func openMoreResults() { moreResults?() }
+  @objc func setupAction(_ sender: NSButton) {
+    if sender.tag == 2 { dismiss?() } else { codexSetupAction?(sender.tag == 0 ? "copy" : "check") }
   }
   @objc func toggleCards() { toggleStack?() }
   required init?(coder: NSCoder) { fatalError() }
@@ -216,11 +296,16 @@ class TrayButton: NSButton {
   }
 }
 final class BellButton: TrayButton {
+  var briefingAvailable = false { didSet { needsDisplay = true } }
   var unread = 0 { didSet { needsDisplay = true } }
   override func draw(_ dirtyRect: NSRect) {
     super.draw(dirtyRect)
     if unread > 0 {
       drawBadge(unread, color: NSColor(calibratedRed: 0.64, green: 0.45, blue: 0.94, alpha: 1))
+    } else if briefingAvailable {
+      NSColor.systemTeal.setFill()
+      NSBezierPath(ovalIn: NSRect(x: bounds.maxX - 10, y: bounds.maxY - 11, width: 6, height: 6))
+        .fill()
     }
   }
 }
@@ -300,11 +385,23 @@ final class PetPanel: NSObject {
   private var pendingCount = 0
   var displayedNoticeIDs: Set<UUID> {
     guard petPanel.isVisible && trayExpanded else { return [] }
-    return Set((stackCollapsed ? Array(lastNotices.prefix(1)) : lastNotices).map(\.id))
+    return Set(
+      cards.enumerated().filter { $0.element.isVisible && $0.offset < lastNotices.count }.map {
+        lastNotices[$0.offset].id
+      })
   }
   var particlePanels: [FloatingPanel] = []
   var signature = ""
   var onOpen: ((Notice) -> Void)?
+  var onResult: ((String) -> Void)?
+  var onMoreResults: ((String) -> Void)?
+  var onBriefing: (() -> Void)?
+  private var summaryPanel: FloatingPanel?
+  private var lastBriefing: String?
+  private var lastVisibleLimit = 2
+  private var briefingDismissed = false
+  private var positioned: Set<ObjectIdentifier> = []
+  var onCodexSetupAction: ((String) -> Void)?
   var onDismiss: ((UUID) -> Void)?
   var onToggle: (() -> Void)?
   var onSessions: (() -> Void)?
@@ -420,7 +517,8 @@ final class PetPanel: NSObject {
   }
   var availableCount: Int {
     let s = petPanel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
-    return max(1, Int((s.height - 213) / 86))
+    let height = max(64, lastNotices.map(NotificationCard.preferredHeight).max() ?? 64)
+    return max(1, Int((s.height - 213) / (height + 8)))
   }
   func clamp() {
     let s = petPanel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
@@ -435,22 +533,34 @@ final class PetPanel: NSObject {
     let shown = stackCollapsed ? Array(cards.prefix(1)) + stackBackings : cards
     let layout = PanelLayout(
       screen: screen, petOrigin: petPanel.frame.origin,
-      count: trayExpanded ? shown.count : 0, collapsed: stackCollapsed)
+      count: trayExpanded ? shown.count : 0, collapsed: stackCollapsed,
+      cardHeights: shown.map { $0.frame.height },
+      footerHeight: trayExpanded ? summaryPanel?.frame.height : nil)
     petPanel.setFrame(layout.pet, display: true)
-    for (panel, rect) in zip(shown, layout.cards) { panel.setFrame(rect, display: true) }
+    positioned = Set(
+      zip(shown, layout.cards).map { panel, rect in
+        panel.setFrame(rect, display: true)
+        return ObjectIdentifier(panel)
+      })
+    if let footer = layout.footer, let summaryPanel {
+      summaryPanel.setFrame(footer, display: true)
+      positioned.insert(ObjectIdentifier(summaryPanel))
+    }
   }
   func updateCardVisibility() {
-    for panel in cards + stackBackings { panel.orderOut(nil) }
+    for panel in cards + stackBackings + [summaryPanel].compactMap({ $0 }) { panel.orderOut(nil) }
     guard petPanel.isVisible && trayExpanded else { return }
     let shown = stackCollapsed ? Array(cards.prefix(1)) + stackBackings : cards
-    for panel in shown.reversed() { panel.orderFrontRegardless() }
+    for panel in (shown + [summaryPanel].compactMap({ $0 })).reversed()
+    where positioned.contains(ObjectIdentifier(panel)) { panel.orderFrontRegardless() }
   }
   func toggleStack() {
     stackCollapsed.toggle()
     signature = ""
     render(
       lastNotices, state: pet.row, unread: bell.unread, commits: commitsToday,
-      working: hasWorkingSession, pending: pendingCount)
+      working: hasWorkingSession, pending: pendingCount, briefing: lastBriefing,
+      visibleLimit: lastVisibleLimit)
   }
   @objc func showCommitsToday() {
     let alert = NSAlert()
@@ -462,13 +572,16 @@ final class PetPanel: NSObject {
   }
   func render(
     _ notices: [Notice], state: Int, unread: Int, commits: Int = 0, working: Bool = false,
-    pending: Int = 0
+    pending: Int = 0, briefing: String? = nil, visibleLimit: Int = 2
   ) {
     lastNotices = notices
+    lastBriefing = briefing
+    lastVisibleLimit = visibleLimit
+    if briefing == nil { briefingDismissed = false }
     pendingCount = pending
     let total = notices.count + pending
     hasWorkingSession = working
-    hasNotices = !notices.isEmpty
+    hasNotices = !notices.isEmpty || briefing != nil
     updateActivityIndicator()
     commitsToday = commits
     gitCount.count = commits
@@ -481,24 +594,54 @@ final class PetPanel: NSObject {
     pet.row = state
     pet.needsDisplay = true
     bell.unread = unread
+    bell.briefingAvailable = briefing != nil
     bell.toolTip = "\(unread) unread notifications — click to \(trayExpanded ? "hide":"show")"
-    let key = notices.map { $0.id.uuidString + $0.message }.joined() + "-\(total)-\(stackCollapsed)"
+    let key =
+      notices.map {
+        $0.id.uuidString + $0.message + ($0.verification?.rawValue ?? "")
+          + ($0.results ?? []).map { $0.id + $0.title }.joined()
+      }.joined() + "-\(total)-\(stackCollapsed)-\(briefing ?? "")-\(visibleLimit)"
     guard key != signature else { return }
     signature = key
-    for panel in cards + stackBackings { panel.close() }
+    for panel in cards + stackBackings + [summaryPanel].compactMap({ $0 }) { panel.close() }
+    summaryPanel = nil
     cards = []
     stackBackings = []
-    for (index, n) in notices.enumerated() {
-      let panel = FloatingPanel(
+    if let briefing, !briefingDismissed, notices.count < min(visibleLimit, availableCount) {
+      let summary = Notice(
+        sessionID: "arta:briefing", title: "Since last reviewed",
+        message: briefing + " · View briefing")
+      let footer = FloatingPanel(
         contentRect: NSRect(x: 0, y: 0, width: 430, height: 64),
+        styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+      configure(footer)
+      let view = NotificationCard(
+        notice: summary,
+        frame: footer.contentView?.bounds ?? NSRect(x: 0, y: 0, width: 430, height: 64))
+      view.open = { [weak self] in self?.onBriefing?() }
+      view.dismiss = { [weak self] in
+        self?.briefingDismissed = true
+        self?.summaryPanel?.orderOut(nil)
+        self?.summaryPanel = nil
+      }
+      footer.contentView = view
+      summaryPanel = footer
+    }
+    for (index, n) in notices.enumerated() {
+      let height = NotificationCard.preferredHeight(n)
+      let panel = FloatingPanel(
+        contentRect: NSRect(x: 0, y: 0, width: 430, height: height),
         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
       configure(panel)
       let stackTitle =
         index == 0 && total > 1
         ? (stackCollapsed ? "+\(total - 1) more ▾" : "Collapse ▴") : nil
       let card = NotificationCard(
-        notice: n, frame: NSRect(x: 0, y: 0, width: 430, height: 64), stackTitle: stackTitle)
+        notice: n, frame: NSRect(x: 0, y: 0, width: 430, height: height), stackTitle: stackTitle)
+      card.result = { [weak self] id in self?.onResult?(id) }
+      card.moreResults = { [weak self] in self?.onMoreResults?(n.sessionID) }
       card.toggleStack = { [weak self] in self?.toggleStack() }
+      card.codexSetupAction = { [weak self] action in self?.onCodexSetupAction?(action) }
       card.open = { [weak self] in self?.onOpen?(n) }
       card.dismiss = { [weak self] in self?.onDismiss?(n.id) }
       panel.contentView = card
@@ -541,37 +684,58 @@ final class PetPanel: NSObject {
     updateCardVisibility()
   }
   func emitGitActivities(_ activities: [GitActivity]) {
+    emitParticles(activities.map { $0 == .commit ? .commit : .push })
+  }
+  func emitInputNeeded() { emitParticles([.input]) }
+  private func emitParticles(_ activities: [PetActivitySignal]) {
     guard petPanel.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
       !activities.isEmpty
     else { return }
-    // A separate click-through window lets droplets rise beyond the pet's bounds.
+    // Keep the click-through fountain attached to the pet, including across displays.
     guard particlePanels.count < 3 else { return }
     let screen = petPanel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
-    let originY = petPanel.frame.minY + pet.frame.minY + 68
-    let height = min(340, max(40, screen.maxY - originY))
+    let petRect = petPanel.convertToScreen(pet.convert(pet.bounds, to: nil))
+    let originY = min(petRect.minY + 68, screen.maxY - 40)
+    let height = min(420, max(40, screen.maxY - originY))
+    let width = min(360, screen.width)
+    let originX = min(max(petRect.midX - width / 2, screen.minX), screen.maxX - width)
+    let frame = NSRect(x: originX, y: originY, width: width, height: height)
     let overlay = FloatingPanel(
-      contentRect: NSRect(
-        x: petPanel.frame.minX + pet.frame.minX - 45, y: originY, width: 220, height: height),
+      contentRect: frame,
       styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
     configure(overlay)
     overlay.ignoresMouseEvents = true
-    let canvas = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: height))
+    overlay.setFrame(frame, display: false)
+    let canvas = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
     canvas.wantsLayer = true
     overlay.contentView = canvas
     guard let host = canvas.layer else { return }
     particlePanels.append(overlay)
+    petPanel.addChildWindow(overlay, ordered: .above)
+    overlay.setFrame(frame, display: false)
     overlay.orderFrontRegardless()
-    let available = 2
-    for (index, activity) in Array(activities.prefix(available)).enumerated() {
+    let burst = Array(activities.prefix(2)).flatMap { Array(repeating: $0, count: 24) }
+    for (index, activity) in burst.enumerated() {
       let particle = CALayer()
-      particle.name = "git-particle"
+      particle.name = activity == .input ? "input-particle" : "git-particle"
       particle.bounds = CGRect(x: 0, y: 0, width: 20, height: 20)
       particle.cornerRadius = 10
       particle.backgroundColor =
-        (activity == .commit ? NSColor.systemOrange : NSColor.systemTeal).cgColor
+        (activity == .push ? NSColor.systemTeal : NSColor.systemOrange).cgColor
       let icon = CAShapeLayer()
       let path = CGMutablePath()
-      if activity == .push {
+      if activity == .input {
+        let question = CATextLayer()
+        question.name = "input-question-mark"
+        question.string = "?"
+        question.font = NSFont.boldSystemFont(ofSize: 17)
+        question.fontSize = 17
+        question.foregroundColor = NSColor.white.cgColor
+        question.alignmentMode = .center
+        question.contentsScale = petPanel.backingScaleFactor
+        question.frame = CGRect(x: 0, y: 1, width: 20, height: 20)
+        particle.addSublayer(question)
+      } else if activity == .push {
         path.move(to: CGPoint(x: 10, y: 5))
         path.addLine(to: CGPoint(x: 10, y: 15))
         path.move(to: CGPoint(x: 6, y: 11))
@@ -587,13 +751,17 @@ final class PetPanel: NSObject {
       icon.fillColor = particle.backgroundColor
       icon.lineWidth = 1.8
       particle.addSublayer(icon)
-      let x = index % 2 == 0 ? 63.0 : 153.0
+      let x = petRect.midX - originX
+      let spread = Double((index * 37) % 201 - 100)
+      let peak = height * (0.60 + Double(index % 7) * 0.05)
       particle.position = CGPoint(x: x, y: 16)
       host.addSublayer(particle)
       let drift = CAKeyframeAnimation(keyPath: "position")
       drift.values = [
-        CGPoint(x: x, y: 16), CGPoint(x: x - 12, y: height * 0.4),
-        CGPoint(x: x + 10, y: height * 0.75), CGPoint(x: x + 3, y: height - 14),
+        CGPoint(x: x, y: 16),
+        CGPoint(x: min(max(x + spread * 0.4, 12), width - 12), y: peak * 0.72),
+        CGPoint(x: min(max(x + spread * 0.8, 12), width - 12), y: peak),
+        CGPoint(x: min(max(x + spread, 12), width - 12), y: peak * 0.65),
       ]
       .map { NSValue(point: $0) }
       drift.keyTimes = [0, 0.35, 0.7, 1]
@@ -602,13 +770,15 @@ final class PetPanel: NSObject {
       fade.keyTimes = [0, 0.08, 0.65, 1]
       let group = CAAnimationGroup()
       group.animations = [drift, fade]
-      group.duration = 3.0
+      group.duration = 2.2
+      group.beginTime = CACurrentMediaTime() + Double(index % 24) * 0.045
       group.timingFunction = CAMediaTimingFunction(name: .easeOut)
       particle.opacity = 0
       particle.add(group, forKey: "float-and-fade")
 
     }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 3.1) { [weak self] in
+    DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) { [weak self] in
+      overlay.parent?.removeChildWindow(overlay)
       overlay.close()
       self?.particlePanels.removeAll { $0 === overlay }
     }

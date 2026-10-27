@@ -29,6 +29,7 @@ public struct AgentEvent: Codable {
   public var sourceSequence: Int?
   public var project: String
   public var message: String?
+  public var sessionName: String?
   public var host: String?
   public var tty: String?
   public var pid: Int32?
@@ -63,7 +64,8 @@ public struct AgentEvent: Codable {
         !$0.isEmpty && $0.utf8.count <= 512
       }),
       [turnID, requestID].compactMap({ $0 }).allSatisfy({ !$0.isEmpty && $0.utf8.count <= 512 }),
-      project.utf8.count <= 8192, (message?.utf8.count ?? 0) <= 48000,
+      project.utf8.count <= 8192, (sessionName?.utf8.count ?? 0) <= 8192,
+      (message?.utf8.count ?? 0) <= 48000,
       occurredAt.timeIntervalSince1970.isFinite, (sourceSequence ?? 0) >= 0
     else { throw IntegrationError.invalidEvent }
     if [.inputRequested, .inputResolved].contains(kind) && requestID == nil {
@@ -90,6 +92,11 @@ public struct SessionKey: Codable, Hashable {
   public var integrationID: String
   public var sourceInstanceID: String
   public var nativeID: String
+  public init(integrationID: String, sourceInstanceID: String, nativeID: String) {
+    self.integrationID = integrationID
+    self.sourceInstanceID = sourceInstanceID
+    self.nativeID = nativeID
+  }
   public var storageID: String {
     // Length-delimited encoding avoids collisions, including malicious separator-containing IDs.
     [integrationID, sourceInstanceID, nativeID].map { "\($0.utf8.count):\($0)" }.joined()

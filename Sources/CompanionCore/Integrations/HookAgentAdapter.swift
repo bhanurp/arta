@@ -13,7 +13,16 @@ public enum HookAgentAdapter {
     let toolID = payload["tool_use_id"] as? String
     let input = payload["tool_input"] as? [String: Any] ?? [:]
     let tool = payload["tool_name"] as? String ?? "tool"
-    let signatureData = try JSONSerialization.data(withJSONObject: input, options: [.sortedKeys])
+    // PermissionRequest adds a human description that PostToolUse omits. Match
+    // shell/edit operations by their command, keeping full arguments for MCP tools.
+    let identityInput: [String: Any]
+    if ["Bash", "apply_patch"].contains(tool), let command = input["command"] as? String {
+      identityInput = ["command": command]
+    } else {
+      identityInput = input
+    }
+    let signatureData = try JSONSerialization.data(
+      withJSONObject: identityInput, options: [.sortedKeys])
     let fingerprint =
       "tool-"
       + SHA256.hash(data: Data((session + ":" + (turn ?? "") + ":" + tool).utf8) + signatureData)
@@ -45,7 +54,7 @@ public enum HookAgentAdapter {
         resolved.requestID = request
         events.append(resolved)
       }
-      // Count only structured, confirmed success. Model-facing text is not a success signal.
+      // Older integrations provide structured status; current Codex Bash emits raw Git output.
       if let response = payload["tool_response"] as? [String: Any],
         let exitCode = response["exit_code"] as? Int, exitCode == 0,
         response["interrupted"] as? Bool != true, let command = input["command"] as? String
@@ -55,6 +64,20 @@ public enum HookAgentAdapter {
           git.eventID = UUID().uuidString
           git.kind = activity == .commit ? .commitCreated : .pushCompleted
           git.requestID = toolID ?? fingerprint
+          events.append(git)
+        }
+      } else if tool == "Bash", let output = payload["tool_response"] as? String,
+        let command = input["command"] as? String
+      {
+        for evidence in CodexGitEvidence.read(
+          command: command, output: output, project: event.project)
+        {
+          var git = event
+          git.eventID = UUID().uuidString
+          git.kind = evidence.activity == .commit ? .commitCreated : .pushCompleted
+          git.requestID = toolID ?? fingerprint
+          git.commitSHA = evidence.sha
+          git.branch = evidence.branch
           events.append(git)
         }
       }

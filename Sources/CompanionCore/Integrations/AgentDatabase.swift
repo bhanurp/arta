@@ -6,7 +6,9 @@ import SQLite3
 public final class AgentDatabase {
   private var connection: OpaquePointer?
   private var lastWritten: Data?
+  private let url: URL
   public init(url: URL) throws {
+    self.url = url
     try AppPaths.privateDirectory(url.deletingLastPathComponent())
     guard
       sqlite3_open_v2(
@@ -37,7 +39,7 @@ public final class AgentDatabase {
         "Could not save Arta's session database. Events will be retried.")
     }
   }
-  public func load(migrating legacyURL: URL) throws -> SessionStore {
+  private func stored() throws -> (Int32, Data)? {
     var statement: OpaquePointer?
     guard
       sqlite3_prepare_v2(
@@ -46,21 +48,71 @@ public final class AgentDatabase {
     else { throw IntegrationError.invalidEvent }
     defer { sqlite3_finalize(statement) }
     let result = sqlite3_step(statement)
-    if result == SQLITE_ROW {
-      guard sqlite3_column_int(statement, 0) == 1 else { throw IntegrationError.unsupportedVersion }
-      guard let bytes = sqlite3_column_blob(statement, 1) else {
-        throw IntegrationError.invalidEvent
-      }
-      return try JSONDecoder().decode(
-        SessionStore.self, from: Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 1))))
+    if result == SQLITE_DONE { return nil }
+    guard result == SQLITE_ROW, let bytes = sqlite3_column_blob(statement, 1) else {
+      throw IntegrationError.invalidEvent
     }
-    guard result == SQLITE_DONE else { throw IntegrationError.invalidEvent }
+    return (
+      sqlite3_column_int(statement, 0),
+      Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 1)))
+    )
+  }
+  public func load(migrating legacyURL: URL) throws -> SessionStore {
+    if let (version, data) = try stored() {
+      guard [1, 2].contains(version) else { throw IntegrationError.unsupportedVersion }
+      var store = try JSONDecoder().decode(SessionStore.self, from: data)
+      store.background = store.background ?? BackgroundWork()
+      for key in store.background!.scopes.keys { store.background!.scopes[key]?.continuous = false }
+      if version == 1 {
+        try backup()
+        try save(store)
+      }
+      return store
+    }
     var store = try Persistence.load(legacyURL)
     AgentReducer.migrateLegacy(&store)
+    store.background = store.background ?? BackgroundWork()
     try save(store)
     return store
   }
+  private func backup() throws {
+    let directory = url.deletingLastPathComponent().appendingPathComponent(
+      "backups/state-migrations")
+    try AppPaths.privateDirectory(directory)
+    let target = directory.appendingPathComponent("v1-" + UUID().uuidString + ".sqlite")
+    var destination: OpaquePointer?
+    guard
+      sqlite3_open_v2(target.path, &destination, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nil)
+        == SQLITE_OK
+    else {
+      sqlite3_close(destination)
+      throw IntegrationError.unavailable("Could not back up existing state.")
+    }
+    defer { sqlite3_close(destination) }
+    guard let backup = sqlite3_backup_init(destination, "main", connection, "main") else {
+      throw IntegrationError.unavailable("Could not begin state backup.")
+    }
+    let result = sqlite3_backup_step(backup, -1)
+    let finish = sqlite3_backup_finish(backup)
+    guard result == SQLITE_DONE, finish == SQLITE_OK else {
+      throw IntegrationError.unavailable("Could not complete state backup.")
+    }
+    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
+    let existing = try FileManager.default.contentsOfDirectory(
+      at: directory, includingPropertiesForKeys: [.contentModificationDateKey]
+    )
+    .filter { $0.pathExtension == "sqlite" }.sorted {
+      ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+        ?? .distantPast)
+        > ((try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+          ?? .distantPast)
+    }
+    for file in existing.dropFirst(2) { try? FileManager.default.removeItem(at: file) }
+  }
   public func save(_ store: SessionStore) throws {
+    if let (version, _) = try stored(), ![1, 2].contains(version) {
+      throw IntegrationError.unsupportedVersion
+    }
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
     let data = try encoder.encode(store)
@@ -70,7 +122,7 @@ public final class AgentDatabase {
       var statement: OpaquePointer?
       guard
         sqlite3_prepare_v2(
-          connection, "INSERT OR REPLACE INTO state(id,version,payload) VALUES(1,1,?)", -1,
+          connection, "INSERT OR REPLACE INTO state(id,version,payload) VALUES(1,2,?)", -1,
           &statement, nil) == SQLITE_OK
       else { throw IntegrationError.invalidEvent }
       defer { sqlite3_finalize(statement) }

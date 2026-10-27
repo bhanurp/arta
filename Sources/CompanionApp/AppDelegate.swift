@@ -4,6 +4,10 @@ import CompanionCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
   let updates = AppUpdates()
   let navigator = SessionNavigator()
+  let backgroundController = BackgroundWorkController()
+  let artifactActions = ArtifactActions()
+  let briefingMenuItem = NSMenuItem(
+    title: "Return briefing…", action: #selector(showBriefing), keyEquivalent: "")
   var tracking: TrackingCoordinator?
   var registry = IntegrationRegistry.bundled
   let integrationSetup = IntegrationSetup()
@@ -21,6 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   var window: NSWindow?
   var list = NSTextView()
   var diagnostic = ""
+  var codexSetupStatus = ""
+  var checkingCodexHooks = false
+  var lastCodexHookCheck = Date.distantPast
   var iconButtons: [NSButton] = []
   var iconMenuItems: [NSMenuItem] = []
   var installed = false
@@ -62,6 +69,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     }
     panel = PetPanel()
+    let alias = root.appendingPathComponent("arta")
+    if !FileManager.default.fileExists(atPath: alias.path) {
+      try? FileManager.default.createSymbolicLink(
+        atPath: alias.path, withDestinationPath: helper.path)
+    }
     panel.onNewChat = { [weak self] in self?.newChat() }
     panel.onSessions = { [weak self] in self?.showSessions() }
     panel.onToggle = { [weak self] in
@@ -74,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self?.store.queue.dismiss(id: id)
       self?.refresh()
     }
+    panel.onCodexSetupAction = { [weak self] action in self?.codexSetupAction(action) }
     panel.onOpen = { [weak self] notice in self?.openNotice(notice) }
     status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     status.button?.title = ""
@@ -114,7 +127,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     menu.addItem(.separator())
     add(menu, "Disable selected integration…", #selector(disable))
     add(menu, "Quit", #selector(quit))
+    briefingMenuItem.target = self
+    menu.insertItem(briefingMenuItem, at: 3)
     status.menu = menu
+    configureBackgroundWork()
     store.queue.visible.removeAll { $0.sessionID == "demo" }
     store.queue.pending.removeAll { $0.sessionID == "demo" }
     store.queue.history.removeAll { $0.sessionID == "demo" }
@@ -196,6 +212,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       store: &store, registry: registry, setup: integrationSetup, discover: true)
     {
       panel.emitGitActivities(result.activities)
+      if result.inputRequested { panel.emitInputNeeded() }
       if result.attention { panel.revealForAttention() }
       if !result.diagnostics.isEmpty { diagnostic = result.diagnostics.joined(separator: "\n") }
     }
@@ -205,10 +222,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let dt = min(1, now.timeIntervalSince(lastTick))
     lastTick = now
     tickCount += 1
+    if tickCount % 10 == 0 { samplePresence() }
+    checkCodexHooks()
     if let result = tracking?.poll(
       store: &store, registry: registry, setup: integrationSetup, discover: tickCount % 10 == 0)
     {
       panel.emitGitActivities(result.activities)
+      if result.inputRequested { panel.emitInputNeeded() }
       if result.attention { panel.revealForAttention() }
       if !result.diagnostics.isEmpty { diagnostic = result.diagnostics.joined(separator: "\n") }
     }
@@ -224,6 +244,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
   func refresh() {
+    store.refreshNotificationTitles()
+    store.refreshBackgroundNotices()
+    let briefing = BriefingBuilder.build(store)
+    briefingMenuItem.title =
+      briefing.hasNewActivity ? "Return briefing · " + briefing.summary : "Return briefing…"
     store.queue.setVisibleLimit(min(limit, panel.availableCount))
     let enabled = Set(registry.manifests.filter { integrationSetup.installed($0.id) }.map(\.id))
     let sessions = store.sessions.values.filter {
@@ -232,14 +257,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let waiting = sessions.filter { $0.state == .needsInput }.count
     let working = sessions.filter { $0.state == .working }.count
     let completed = store.queue.visible.contains { notice in
-      sessions.contains { $0.id == notice.sessionID && $0.state == .finished }
+      notice.verification == .passed
+        && sessions.contains { $0.id == notice.sessionID && $0.state == .finished }
     }
     let state = waiting > 0 ? 2 : working > 0 ? 1 : completed ? 3 : 0
     panel.pet.badge = "\(working) working · \(store.queue.pending.count) queued"
     panel.render(
       store.queue.visible, state: state, unread: store.queue.allMessages.filter { !$0.read }.count,
       commits: store.dailyCommits?.count() ?? 0, working: working > 0,
-      pending: store.queue.pending.count)
+      pending: store.queue.pending.count,
+      briefing: briefing.hasNewActivity ? briefing.summary : nil, visibleLimit: limit)
     workingMenuItem.title = "Working: \(working)"
     inputMenuItem.title = "Needs your input: \(waiting)"
     status.button?.toolTip = "Arta · \(working) working · \(waiting) need you"
@@ -421,6 +448,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .foregroundColor: NSColor.labelColor,
           ]))
     }
+    text.append(
+      NSAttributedString(
+        string: "Return briefing\n\n",
+        attributes: [
+          .font: NSFont.boldSystemFont(ofSize: 14),
+          .link: URL(string: "companion://briefing/view")!,
+        ]))
     for manifest in registry.manifests {
       let enabled = integrationSetup.installed(manifest.id)
       let recent = tracking?.lastEvents[manifest.id]
@@ -429,6 +463,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ? "Not enabled" : recent == nil ? "Configured · waiting for an event" : "Receiving events"
       append("\(manifest.name): \(state)\n", bold: true)
       if enabled && recent == nil { append(manifest.setupNote + "\n") }
+    }
+    if !codexSetupStatus.isEmpty {
+      append(codexSetupStatus + "\n")
+      text.append(
+        NSAttributedString(
+          string: "Copy /hooks   ",
+          attributes: [.link: URL(string: "companion://codex-setup/copy")!]))
+      text.append(
+        NSAttributedString(
+          string: "Check again\n\n",
+          attributes: [.link: URL(string: "companion://codex-setup/check")!]))
     }
     if !diagnostic.isEmpty { append(diagnostic + "\n") }
     append(
@@ -453,6 +498,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 "companion://session/\(s.id.addingPercentEncoding(withAllowedCharacters:.urlPathAllowed) ?? s.id)"
             )!,
           ]))
+      text.append(
+        NSAttributedString(
+          string: "  Evidence & results",
+          attributes: [.link: URL(string: "companion://details/" + s.id)!]))
       append(
         "  ·  \(registry.manifest(for: s.integrationID ?? "claude-code")?.name ?? "Agent") ·  \(stateLabel(s.state))\n\(s.project)\n\(s.message ?? "")\n\n"
       )
@@ -488,6 +537,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     refresh()
   }
   func openNotice(_ n: Notice) {
+    if n.sessionID == Self.codexSetupID {
+      showSessions()
+      return
+    }
     guard n.sessionID != "sample" else {
       store.queue.dismiss(id: n.id)
       refresh()
@@ -523,6 +576,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 extension AppDelegate: NSTextViewDelegate {
   func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
     guard let url = link as? URL, url.scheme == "companion" else { return false }
+    if url.host == "codex-setup" {
+      codexSetupAction(url.lastPathComponent)
+      return true
+    }
+    if url.host == "briefing" {
+      showBriefing()
+      return true
+    }
+    if url.host == "details" {
+      backgroundController.show(sessionID: url.lastPathComponent)
+      return true
+    }
     if url.host == "notice", let id = UUID(uuidString: url.lastPathComponent),
       let notice = store.queue.allMessages.first(where: { $0.id == id })
     {

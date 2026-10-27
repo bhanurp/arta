@@ -27,8 +27,8 @@ session/history tables can be added when measured data volume warrants them.
 | Integration | Setup | Coverage |
 |---|---|---|
 | Claude Code | Merge owned hooks in `~/.claude/settings.json` | Hooks plus existing local discovery and transcript recovery |
-| Codex | Merge owned hooks in `~/.codex/hooks.json` | Sessions loading lifecycle hooks; user must review/trust hooks in Codex `/hooks` |
-| OpenCode | Install owned `~/.config/opencode/plugins/arta.js` | v1 plugin session lifecycle and permission events; restart existing sessions |
+| Codex | Merge owned hooks in `~/.codex/hooks.json` | Open local sessions from owned writer locks and read-only state/history; trusted hooks add input/tool detail |
+| OpenCode | Install owned `~/.config/opencode/plugins/arta.js` | Working local server sessions discovered without restart; v1 plugin adds lifecycle and permission events |
 | External | Manifest plus independently installed bridge | Explicitly declared capabilities; enable event intake in settings |
 
 `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, and `XDG_CONFIG_HOME` are honored when present in the launching
@@ -36,18 +36,40 @@ environment. `ARTA_DATA_DIR` overrides Arta's data root for isolated testing. Fi
 may not inherit terminal environment variables. Custom configuration roots must be shared with
 Arta and the bridge. Remote sessions are not automatically observed.
 
-Codex integration never changes approval policy or bypasses hook trust. This is hook observation,
-not a client claiming ownership of every Codex app-server session. Permission denial and host
+Codex discovery observes existing session ownership without resuming threads or attaching a new
+app-server. It reads Codex's `state_5.sqlite` and optional `thread_history_1.sqlite` with read-only
+SQLite connections and matches only writer-lock files held by a live Codex process. Unowned files
+and saved historical threads do not count as open sessions. These local schemas are version-specific;
+unsupported schemas produce a diagnostic, and missing turn history leaves state unknown. The
+history projection reports turn progress/completion, not pending approvals: input detail still needs
+trusted lifecycle hooks. Arta never changes approval policy or bypasses hook trust. Permission denial and host
 versions lacking hook events may leave a request pending until a later observed resolution or
 explicit dismissal. OpenCode support targets its documented v1 plugin API; v2-only hosts need a
-version-specific adapter. General question prompts and Git activity are not currently supported
-by the OpenCode adapter. Codex Git events require structured explicit successful exit status;
-model-facing output text is not treated as proof of success.
+version-specific adapter. The plugin does not expose general question prompts or Git activity; the passive local-server
+observer can read pending questions when its `/question` endpoint is available. Codex Git receipts accept structured success or restricted Git confirmations with commit hashes verified against the repository. This Git-specific path does not establish generic test success.
 
-A sample notification tests presentation. “Receiving events” in settings confirms bridge traffic;
+A sample notification tests presentation. “Receiving events” in settings confirms bridge traffic or successfully observed live sessions;
 “Configured · waiting for an event” does not claim that hook trust or live connectivity succeeded.
 Native focus is exact only where the host exposes verifiable process/TTY/tab identity. Other
 hosts open the containing application and explain the limitation.
+
+## Automatic discovery
+
+`SessionDiscoveryProvider` is the extension boundary for passive observers. `PassiveSessionDiscovery`
+runs providers on a utility queue, with bounded local commands and HTTP reads; the UI only consumes
+completed batches. `TrackingCoordinator` applies a batch through `PassiveDiscoveryReducer` using
+the same session identity/lifecycle as hooks, then acknowledges it after the database commits.
+A failed save retains the batch. Newer hook events win over an older scan. Initial completed work
+is quiet; observed working-to-completed transitions notify once. Input requests retain native IDs,
+and are cleared only by an authoritative request list or an explicit resolution.
+
+OpenCode discovery finds TCP listeners owned by local `opencode` processes. It uses loopback-only
+GET requests to `/global/health`, `/session/status`, `/permission`, `/question` and session metadata.
+It does not enumerate historical sessions as active, send prompts, approve requests, follow HTTP
+redirects or read credentials. An idle session never observed working is not discovered until the
+server reports activity or a pending request. Password-protected servers, remote hosts, custom
+process wrappers and hosts without a local listener need the plugin. Polling may miss a complete
+short turn between scans; the installed plugin/hook remains the reliable event path for those turns.
 
 ## Event protocol v1
 
@@ -134,3 +156,15 @@ round trip through the inbox, database and notification queue. Run `swift test`,
 Reference APIs: [Claude hooks](https://code.claude.com/docs/en/hooks),
 [Codex hooks](https://developers.openai.com/codex/hooks/),
 [OpenCode v1 plugins](https://opencode.ai/docs/plugins/).
+
+## Background observations
+
+`observations-v1/<integrationID>` is separate from lifecycle `events-v1`. It carries
+`tool.started`, `tool.finished`, `workspace.changed`, and `artifact.published` with
+a producer epoch and native invocation identity. File publications must capture
+`canonicalRoot` before queueing. An absent outcome or continuous scope stays
+unverified. See [Background work](BACKGROUND_WORK.md) and the approved
+[design](superpowers/specs/2026-10-26-trustworthy-background-work-design.md).
+The current state storage version is 2; migration backs up version-1 SQLite state
+and older readers refuse version 2. Invocation association files are bounded and
+completed bindings are removed after the observation is durably spooled.

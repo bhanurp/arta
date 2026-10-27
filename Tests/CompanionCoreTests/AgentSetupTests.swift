@@ -3,6 +3,24 @@ import XCTest
 @testable import CompanionCore
 
 final class AgentSetupTests: XCTestCase {
+  func testCodexApprovalDescriptionDoesNotPreventResolution() throws {
+    let permission = Data(
+      #"{"session_id":"s","turn_id":"t","hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"printf test","description":"Allow the notification test?"}}"#
+        .utf8)
+    let completed = Data(
+      #"{"session_id":"s","turn_id":"t","hook_event_name":"PostToolUse","tool_name":"Bash","tool_use_id":"call","tool_input":{"command":"printf test"}}"#
+        .utf8)
+    var store = SessionStore()
+    for event in try HookAgentAdapter.decode(permission, integrationID: "codex") {
+      try AgentReducer.apply(event, to: &store)
+    }
+    XCTAssertEqual(store.sessions.values.first?.state, .needsInput)
+    for event in try HookAgentAdapter.decode(completed, integrationID: "codex") {
+      try AgentReducer.apply(event, to: &store)
+    }
+    XCTAssertEqual(store.sessions.values.first?.state, .working)
+    XCTAssertFalse(store.queue.allMessages.contains { $0.needsInput && !$0.read })
+  }
   func testCodexMapsLifecycleWithoutInventingGitSuccess() throws {
     let data = Data(
       #"{"session_id":"s","turn_id":"t","hook_event_name":"PermissionRequest","tool_use_id":"q","tool_name":"Bash","cwd":"/tmp"}"#

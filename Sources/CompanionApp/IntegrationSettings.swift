@@ -69,6 +69,7 @@ extension AppDelegate {
       try integrationSetup.enable(
         manifest.id, helperSource: helperSource, pluginSource: pluginSource)
       installed = true
+      if manifest.id == "codex" { checkCodexHooks(force: true) }
       diagnostic = "\(manifest.name) configured. \(manifest.setupNote)"
       discover()
       sample()

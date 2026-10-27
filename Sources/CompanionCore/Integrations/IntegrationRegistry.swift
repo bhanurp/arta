@@ -54,16 +54,18 @@ public struct IntegrationRegistry {
         setupNote:
           "Existing sessions may need /hooks or a restart. State stays unknown until observed."),
       IntegrationManifest(
-        id: "codex", name: "Codex", protocolVersion: 1, capabilities: common,
+        id: "codex", name: "Codex", protocolVersion: 1,
+        capabilities: common.union([.existingSessionDiscovery]),
         executableName: "codex",
         setupNote:
-          "Requires a Codex version with lifecycle hooks. Open /hooks in Codex and trust Arta's hooks. Existing sessions may need a restart. Desktop and remote coverage depends on the host loading these hooks."
+          "Discovers open local Codex sessions automatically. Lifecycle hooks add input-request and tool detail; trust Arta in /hooks. Remote sessions are not discovered."
       ),
       IntegrationManifest(
         id: "opencode", name: "OpenCode", protocolVersion: 1,
-        capabilities: common.subtracting([.gitActivity]), executableName: "opencode",
+        capabilities: common.subtracting([.gitActivity]).union([.existingSessionDiscovery]),
+        executableName: "opencode",
         setupNote:
-          "Uses the OpenCode v1 plugin event API. Restart existing sessions to load the plugin. Git activity is not yet available from this adapter."
+          "Discovers working local OpenCode sessions through their running server without a restart. Protected servers use the plugin. Git activity is not yet available from this adapter."
       ),
     ] { try! registry.register(manifest) }
     return registry

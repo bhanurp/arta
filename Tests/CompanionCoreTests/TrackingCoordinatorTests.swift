@@ -41,6 +41,45 @@ final class TrackingCoordinatorTests: XCTestCase {
       restarted.poll(store: &store, registry: registry, setup: setup, discover: false).attention)
     XCTAssertEqual(try inbox.pending().count, 1)
   }
+  func testInputAttentionIsEmittedOnceAndNoticePersistsUntilResolution() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let setup = IntegrationSetup(root: root, home: root, environment: [:])
+    try IntegrationHookInstaller.install(
+      id: "codex", settings: setup.config("codex"), helper: setup.helper)
+    let coordinator = try TrackingCoordinator(root: root)
+    var store = try coordinator.load()
+    let inbox = AgentInbox(root: root, integrationID: "codex")
+    var event = AgentEvent(
+      integrationID: "codex", sourceInstanceID: "local", sessionID: "s", runID: "r",
+      kind: .inputRequested, requestID: "permission", project: "/tmp/Arta",
+      message: "Permission needed: Bash")
+    try inbox.write(event)
+    XCTAssertTrue(
+      coordinator.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+        .inputRequested)
+    store.queue.tick(seconds: 600)
+    XCTAssertEqual(store.queue.visible.count, 1)
+    event.eventID = UUID().uuidString
+    try inbox.write(event)
+    XCTAssertFalse(
+      coordinator.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+        .inputRequested)
+    let restarted = try TrackingCoordinator(root: root)
+    store = try restarted.load()
+    XCTAssertFalse(
+      restarted.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+        .inputRequested)
+    event.eventID = UUID().uuidString
+    event.kind = .inputResolved
+    event.occurredAt = event.occurredAt.addingTimeInterval(1)
+    try inbox.write(event)
+    XCTAssertFalse(
+      restarted.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+        .inputRequested)
+    XCTAssertTrue(store.queue.visible.isEmpty)
+  }
+
   func testBadManifestDoesNotDisableHealthyIntegrations() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

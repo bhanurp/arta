@@ -72,61 +72,36 @@ public struct EventInbox {
 
 }
 public enum ProcessIdentity {
+  // Process.waitUntilExit pumps the caller's run loop. On the main thread this can
+  // fire the tracking timer while a caller holds an inout borrow of SessionStore.
+  // Use the bounded, semaphore-based runner for every identity query instead.
+  private static func query(pid: Int32, columns: String) -> String? {
+    guard pid > 0 else { return nil }
+    return (try? DiscoveryIO.command("/bin/ps", ["-p", String(pid), "-o", columns], timeout: 1))?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+  }
   public static func tty(pid: Int32) -> String? {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/bin/ps")
-    process.arguments = ["-p", String(pid), "-o", "tty="]
-    let pipe = Pipe()
-    process.standardOutput = pipe
-    process.standardError = FileHandle.nullDevice
-    do {
-      try process.run()
-      let value = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-      process.waitUntilExit()
-      guard value.hasPrefix("ttys"), value.allSatisfy({ $0.isLetter || $0.isNumber }) else {
-        return nil
-      }
-      return "/dev/" + value
-    } catch { return nil }
+    guard let value = query(pid: pid, columns: "tty="), value.hasPrefix("ttys"),
+      value.allSatisfy({ $0.isLetter || $0.isNumber })
+    else { return nil }
+    return "/dev/" + value
   }
   public static func start(pid: Int32) -> String? {
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/bin/ps")
-    p.arguments = ["-p", String(pid), "-o", "lstart="]
-    let pipe = Pipe()
-    p.standardOutput = pipe
-    p.standardError = FileHandle.nullDevice
-    do {
-      try p.run()
-      let d = pipe.fileHandleForReading.readDataToEndOfFile()
-      p.waitUntilExit()
-      let s = String(decoding: d, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-      return s.isEmpty ? nil : s
-    } catch { return nil }
+    guard let value = query(pid: pid, columns: "lstart="), !value.isEmpty else { return nil }
+    return value
   }
   public static func claudeAncestor() -> Int32? { agentAncestor(named: "claude") }
   public static func agentAncestor(named name: String) -> Int32? {
     var pid = getppid()
     for _ in 0..<6 {
-      let p = Process()
-      p.executableURL = URL(fileURLWithPath: "/bin/ps")
-      p.arguments = ["-p", String(pid), "-o", "ppid=,comm="]
-      let pipe = Pipe()
-      p.standardOutput = pipe
-      p.standardError = FileHandle.nullDevice
-      do {
-        try p.run()
-        let s = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        p.waitUntilExit()
-        let parts = s.split(maxSplits: 1, whereSeparator: { $0.isWhitespace })
-        guard parts.count == 2 else { return nil }
-        if URL(fileURLWithPath: String(parts[1])).lastPathComponent.lowercased().contains(name) {
-          return pid
-        }
-        guard let parent = Int32(parts[0]), parent > 1 else { return nil }
-        pid = parent
-      } catch { return nil }
+      guard let value = query(pid: pid, columns: "ppid=,comm=") else { return nil }
+      let parts = value.split(maxSplits: 1, whereSeparator: { $0.isWhitespace })
+      guard parts.count == 2 else { return nil }
+      if URL(fileURLWithPath: String(parts[1])).lastPathComponent.lowercased().contains(name) {
+        return pid
+      }
+      guard let parent = Int32(parts[0]), parent > 1 else { return nil }
+      pid = parent
     }
     return nil
   }

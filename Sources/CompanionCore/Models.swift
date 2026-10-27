@@ -48,12 +48,18 @@ public struct SessionSnapshot: Codable, Identifiable {
   public var nativeSessionID: String?
   public var sourceInstanceID: String?
   public var connectionState: AgentConnectionState?
+  public var sessionName: String?
   public var title: String {
-    let name = URL(fileURLWithPath: project).lastPathComponent
+    let path = project.trimmingCharacters(in: .whitespacesAndNewlines)
+    let name = path.isEmpty ? "" : URL(fileURLWithPath: path).lastPathComponent
     let agent =
       integrationID.flatMap { IntegrationRegistry.bundled.manifest(for: $0)?.name } ?? integrationID
       ?? "Claude Code"
-    return "\(name.isEmpty ? agent : name) · \((nativeSessionID ?? id).prefix(5))"
+    let projectName = name.isEmpty || name == "/" ? agent : name
+    let session = (sessionName ?? "").split(whereSeparator: { $0.isWhitespace }).joined(
+      separator: " ")
+    return session.isEmpty || session == projectName
+      ? projectName : "\(projectName) · \(session)"
   }
 }
 public struct SessionStore: Codable {
@@ -61,9 +67,29 @@ public struct SessionStore: Codable {
   public var queue = NotificationQueue()
   public var seen: [UUID] = []
   public var dailyCommits: DailyCommitCounter?
+  public var discoveredSessionIDs: Set<String>?
   public var agentLifecycles: [String: AgentLifecycle]?
   public var gitRecords: [AgentGitRecord]?
+  public var background: BackgroundWork?
   public init() {}
+  /// Refresh persisted labels without changing notification identity or acknowledgement state.
+  public mutating func refreshNotificationTitles() {
+    for index in queue.visible.indices {
+      if let session = sessions[queue.visible[index].sessionID] {
+        queue.visible[index].title = session.title
+      }
+    }
+    for index in queue.pending.indices {
+      if let session = sessions[queue.pending[index].sessionID] {
+        queue.pending[index].title = session.title
+      }
+    }
+    for index in queue.history.indices {
+      if let session = sessions[queue.history[index].sessionID] {
+        queue.history[index].title = session.title
+      }
+    }
+  }
   @discardableResult public mutating func apply(_ event: SessionEvent) -> Bool {
     guard !seen.contains(event.id) else { return false }
     var counter = dailyCommits ?? DailyCommitCounter()

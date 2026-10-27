@@ -61,9 +61,11 @@ Choose **Claude Code**, **Codex**, or **OpenCode** in Sessions & settings, then 
 The same pet, notification stack and session counters serve every enabled integration. New session
 creation lets you choose an agent before selecting its project folder.
 
-Codex requires reviewing Arta's hooks in its `/hooks` screen. OpenCode uses its v1 plugin API and
-existing sessions need restarting; its adapter currently observes permission requests and lifecycle
-events, without Git tracking. These integrations are in the source build; the v0.1.6 download below
+Arta discovers open local Codex sessions and working OpenCode sessions automatically, without
+restarting them. Discovery runs in the background about every five seconds. Codex hooks (trusted
+through `/hooks`) add input-request and tool detail. OpenCode's local server supplies current status,
+permissions and questions; protected servers need the configured plugin. OpenCode Git tracking is
+not yet available. These integrations are in the source build; the v0.1.6 download below
 still provides Claude-only tracking. See [integration coverage and extension guide](docs/INTEGRATIONS.md).
 
 ## Get started
@@ -132,6 +134,23 @@ open dist/Arta.app
 | Use the menu bar | Show/hide Arta, preview a notification, set up permissions, or disable tracking |
 
 Hover and attention animations respect **macOS Reduce Motion**. Dismissing a notification never answers a question or grants Claude permission.
+
+When a tracked session needs your input, Arta shows a brief fountain of question
+marks and opens a **Needs your input** notification. Each new request triggers the
+effect once; the notification stays until answered or dismissed. Reduce Motion
+disables the particles while keeping the notification available.
+
+## Background work you can inspect
+
+Completion cards distinguish a finished response from missing, incomplete, failed,
+or stale verification. The quiet return briefing collects pending decisions and
+recent results. **Evidence & results** lets you inspect checks, attach a result,
+and open explicitly published files or previews directly from a notification.
+
+Built-in providers currently leave verification incomplete when authoritative exit
+status or continuous file-change coverage is unavailable. Arta never treats an
+agent's success sentence as proof. See [Background work](docs/BACKGROUND_WORK.md)
+for current coverage, result publication, and storage compatibility.
 
 ## Local by design
 

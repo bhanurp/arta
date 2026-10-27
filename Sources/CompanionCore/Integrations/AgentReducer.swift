@@ -7,9 +7,11 @@ public struct AgentLifecycle: Codable {
   var updated: Date = .distantPast
   var state: SessionState = .unknown
   var requests: [String: String] = [:]
+  var discoveredRequests: Set<String>?
   var resolvedRequests: Set<String> = []
   var seen: [String] = []
   var completedTurns: [String] = []
+  public var currentTurnID: String? { turnID }
 }
 public struct AgentGitRecord: Codable, Identifiable {
   public var id: String
@@ -155,13 +157,20 @@ public enum AgentReducer {
       transcript: event.transcript ?? old?.transcript,
       requestID: lifecycle.requests.keys.sorted().first, integrationID: event.integrationID,
       nativeSessionID: event.sessionID, sourceInstanceID: event.sourceInstanceID,
-      connectionState: .connected)
+      connectionState: .connected,
+      sessionName: event.sessionName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        == false
+        ? event.sessionName : old?.sessionName)
     store.sessions[id] = snapshot
     var lifecycles = store.agentLifecycles ?? [:]
     lifecycles[id] = lifecycle
     store.agentLifecycles = lifecycles
+    var background = store.background ?? BackgroundWork()
+    background.lifecycle(event)
+    store.background = background
     if var notice {
       notice.title = snapshot.title
+      notice.turnID = lifecycle.turnID
       store.queue.enqueue(notice)
     }
     return attention
