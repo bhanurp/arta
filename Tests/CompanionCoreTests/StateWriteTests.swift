@@ -4,6 +4,7 @@ import XCTest
 @testable import CompanionCore
 
 final class StateWriteTests: XCTestCase {
+  /// Reads an independent SQLite connection's token for commits by other connections.
   func version(_ connection: OpaquePointer?) throws -> Int32 {
     var statement: OpaquePointer?
     XCTAssertEqual(
@@ -13,6 +14,7 @@ final class StateWriteTests: XCTestCase {
     return sqlite3_column_int(statement, 0)
   }
 
+  /// Checks equal memberships avoid commits while changed membership survives reload.
   func testEqualRebuiltSetsDoNotCommitAndRealChangesSurviveReload() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -22,6 +24,7 @@ final class StateWriteTests: XCTestCase {
     let values = (0..<80).map { "session-\($0)" }
     var lifecycle = AgentLifecycle(runID: "hooks")
     store.background = BackgroundWork()
+    /// Recreates every persisted string set with equal membership and fresh storage.
     func rebuild() {
       let set = Set(values.reversed())
       store.discoveredSessionIDs = set
@@ -52,6 +55,7 @@ final class StateWriteTests: XCTestCase {
     XCTAssertEqual(restored.agentLifecycles?["fixture"]?.resolvedRequests, Set(values))
   }
 
+  /// Exercises quiet coordinator polling with retained unavailable sessions.
   func testQuietCoordinatorPollsDoNotRewriteUnavailableSessions() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -84,6 +88,7 @@ final class StateWriteTests: XCTestCase {
       try version(observer), before, "Quiet polling must not commit shuffled set members")
   }
 
+  /// Checks current-version reload seeds deduplication without another unchanged write.
   func testLoadingUnchangedStateDoesNotCommitAgain() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -103,6 +108,7 @@ final class StateWriteTests: XCTestCase {
     XCTAssertEqual(try version(observer), before)
   }
 
+  /// Checks legacy set decoding and preserves ordered replay and notification arrays.
   func testLegacyUnsortedSetsDecodeWithoutReorderingReplayOrNotifications() throws {
     var store = SessionStore()
     let first = UUID()
