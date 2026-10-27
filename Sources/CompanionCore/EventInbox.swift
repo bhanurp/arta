@@ -2,7 +2,10 @@ import Foundation
 
 public enum AppPaths {
   public static var root: URL {
-    FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+    if let path = ProcessInfo.processInfo.environment["ARTA_DATA_DIR"] {
+      return URL(fileURLWithPath: path)
+    }
+    return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
       "Library/Application Support/ClaudeCompanion")
   }
   public static var config: URL {
@@ -23,10 +26,12 @@ public struct EventInbox {
     let files = try FileManager.default.contentsOfDirectory(
       at: directory, includingPropertiesForKeys: nil
     ).filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
-    if files.count >= 1000 {
-      for f in files.prefix(files.count - 999) { try? FileManager.default.removeItem(at: f) }
-      try? Data("Some events were dropped while the companion was offline.".utf8).write(
+    if files.count >= 20000 {
+      try? Data(
+        "The inbox is full. Open Arta to resume tracking. Existing events were preserved.".utf8
+      ).write(
         to: directory.appendingPathComponent("overflow.txt"), options: .atomic)
+      throw IntegrationError.unavailable("Arta's event inbox is full.")
     }
     let url = directory.appendingPathComponent(
       "\(Int64(e.time.timeIntervalSince1970*1_000_000))-\(e.id).json")
@@ -38,17 +43,26 @@ public struct EventInbox {
     try acknowledge(events)
     return events
   }
-  public func pendingEvents() throws -> [SessionEvent] {
+  public func pendingEvents(diagnostic: ((String) -> Void)? = nil) throws -> [SessionEvent] {
     guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
     var events: [SessionEvent] = []
     for file in try FileManager.default.contentsOfDirectory(
-      at: directory, includingPropertiesForKeys: nil) where file.pathExtension == "json"
-    {
-      if let data = try? Data(contentsOf: file),
-        let e = try? JSONDecoder().decode(SessionEvent.self, from: data)
-      {
-        events.append(e)
-      } else {
+      at: directory,
+      includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+    where file.pathExtension == "json" {
+      do {
+        let info = try file.resourceValues(forKeys: [
+          .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey,
+        ])
+        guard info.isRegularFile == true, info.isSymbolicLink != true,
+          (info.fileSize ?? Int.max) <= 2_097_152
+        else {
+          throw IntegrationError.invalidEvent
+        }
+        let event = try JSONDecoder().decode(SessionEvent.self, from: Data(contentsOf: file))
+        events.append(try ClaudeTracking.normalized(event))
+      } catch {
+        diagnostic?("An invalid Claude event was set aside: \(error.localizedDescription)")
         try? FileManager.default.moveItem(at: file, to: file.appendingPathExtension("invalid"))
       }
     }
@@ -67,58 +81,36 @@ public struct EventInbox {
 
 }
 public enum ProcessIdentity {
+  // Process.waitUntilExit pumps the caller's run loop. On the main thread this can
+  // fire the tracking timer while a caller holds an inout borrow of SessionStore.
+  // Use the bounded, semaphore-based runner for every identity query instead.
+  private static func query(pid: Int32, columns: String) -> String? {
+    guard pid > 0 else { return nil }
+    return (try? DiscoveryIO.command("/bin/ps", ["-p", String(pid), "-o", columns], timeout: 1))?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+  }
   public static func tty(pid: Int32) -> String? {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/bin/ps")
-    process.arguments = ["-p", String(pid), "-o", "tty="]
-    let pipe = Pipe()
-    process.standardOutput = pipe
-    process.standardError = FileHandle.nullDevice
-    do {
-      try process.run()
-      let value = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-      process.waitUntilExit()
-      guard value.hasPrefix("ttys"), value.allSatisfy({ $0.isLetter || $0.isNumber }) else {
-        return nil
-      }
-      return "/dev/" + value
-    } catch { return nil }
+    guard let value = query(pid: pid, columns: "tty="), value.hasPrefix("ttys"),
+      value.allSatisfy({ $0.isLetter || $0.isNumber })
+    else { return nil }
+    return "/dev/" + value
   }
   public static func start(pid: Int32) -> String? {
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/bin/ps")
-    p.arguments = ["-p", String(pid), "-o", "lstart="]
-    let pipe = Pipe()
-    p.standardOutput = pipe
-    p.standardError = FileHandle.nullDevice
-    do {
-      try p.run()
-      let d = pipe.fileHandleForReading.readDataToEndOfFile()
-      p.waitUntilExit()
-      let s = String(decoding: d, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-      return s.isEmpty ? nil : s
-    } catch { return nil }
+    guard let value = query(pid: pid, columns: "lstart="), !value.isEmpty else { return nil }
+    return value
   }
-  public static func claudeAncestor() -> Int32? {
+  public static func claudeAncestor() -> Int32? { agentAncestor(named: "claude") }
+  public static func agentAncestor(named name: String) -> Int32? {
     var pid = getppid()
     for _ in 0..<6 {
-      let p = Process()
-      p.executableURL = URL(fileURLWithPath: "/bin/ps")
-      p.arguments = ["-p", String(pid), "-o", "ppid=,comm="]
-      let pipe = Pipe()
-      p.standardOutput = pipe
-      p.standardError = FileHandle.nullDevice
-      do {
-        try p.run()
-        let s = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        p.waitUntilExit()
-        let parts = s.split(maxSplits: 1, whereSeparator: { $0.isWhitespace })
-        guard parts.count == 2 else { return nil }
-        if parts[1].lowercased().contains("claude") { return pid }
-        guard let parent = Int32(parts[0]), parent > 1 else { return nil }
-        pid = parent
-      } catch { return nil }
+      guard let value = query(pid: pid, columns: "ppid=,comm=") else { return nil }
+      let parts = value.split(maxSplits: 1, whereSeparator: { $0.isWhitespace })
+      guard parts.count == 2 else { return nil }
+      if URL(fileURLWithPath: String(parts[1])).lastPathComponent.lowercased().contains(name) {
+        return pid
+      }
+      guard let parent = Int32(parts[0]), parent > 1 else { return nil }
+      pid = parent
     }
     return nil
   }

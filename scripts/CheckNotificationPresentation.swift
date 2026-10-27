@@ -6,8 +6,51 @@ extension Bundle { static var module: Bundle { .main } }
   static func main() {
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.prohibited)
+    let setup = NotificationCard(
+      notice: Notice(sessionID: CodexHookTrust.noticeSessionID, title: "Finish connecting Codex",
+                     message: "Review Arta hooks", needsInput: true),
+      frame: NSRect(x: 0, y: 0, width: 410, height: 64))
+    var setupActions: [String] = []
+    setup.codexSetupAction = { setupActions.append($0) }
+    setup.dismiss = { setupActions.append("later") }
+    for label in ["Copy /hooks", "Check again", "Later"] {
+      guard let button = setup.subviews.compactMap({ $0 as? NSButton }).first(where: { $0.title == label }) else {
+        fatalError("Missing setup action: " + label)
+      }
+      button.performClick(nil)
+    }
+    precondition(setupActions == ["copy", "check", "later"])
+    var resultNotice = Notice(sessionID: "result-test", title: "Arta · Result test", message: "Response finished")
+    resultNotice.verification = .missing
+    resultNotice.results = (0..<3).map { ArtifactPublication(id: "result-\($0)", title: "Report \($0)", kind: .file, location: "report.txt") }
+    let resultHeight = NotificationCard.preferredHeight(resultNotice)
+    precondition(resultHeight > 64)
+    let resultCard = NotificationCard(notice: resultNotice, frame: NSRect(x: 0, y: 0, width: 430, height: resultHeight))
+    var resultOpened: String?
+    var moreOpened = false
+    resultCard.result = { resultOpened = $0 }; resultCard.moreResults = { moreOpened = true }
+    let resultButtons = resultCard.subviews.compactMap { $0 as? NSButton }
+    resultButtons.first { $0.title.contains("Report 0") }!.performClick(nil)
+    precondition(resultOpened == "result-0")
+    resultButtons.first { $0.title == "More…" }!.performClick(nil)
+    precondition(moreOpened)
+    precondition(resultCard.subviews.compactMap { $0 as? NSTextField }.contains { $0.stringValue == "Verification missing" })
+    precondition(!resultCard.subviews.compactMap { $0 as? NSTextField }.contains { $0.stringValue == "✓" }, "Missing verification must not show success")
+    let resultLayout = PanelLayout(screen: CGRect(x: 0, y: 0, width: 800, height: 700), petOrigin: CGPoint(x: 600, y: 600), count: 2, cardHeights: [resultHeight, 88], footerHeight: 64)
+    precondition(resultLayout.cards.count == 2 && resultLayout.footer != nil)
+    precondition(!resultLayout.cards[0].intersects(resultLayout.cards[1]))
+    precondition(resultLayout.cards.allSatisfy { CGRect(x: 0, y: 0, width: 800, height: 700).contains($0) })
     let panel = PetPanel()
     panel.setVisible(true)
+    var webNotice = Notice(sessionID: "web-result", title: "Preview", message: "Response finished")
+    webNotice.results = [ArtifactPublication(id: "preview", title: "Preview", kind: .web, location: "https://first.example/report")]
+    panel.render([webNotice], state: 0, unread: 1)
+    webNotice.results![0].location = "https://second.example/report"
+    panel.render([webNotice], state: 0, unread: 1)
+    let updatedWebCard = panel.cards[0].contentView as! NotificationCard
+    precondition(updatedWebCard.subviews.compactMap { $0 as? NSButton }.contains {
+      $0.toolTip == "https://second.example/report" && $0.title.contains("second.example")
+    }, "Result destination changes must update the visible button and tooltip")
     for choice in AppIconChoice.allCases {
       panel.pet.selectAppearance(choice)
       precondition(panel.pet.appearanceChoice == choice)
@@ -46,6 +89,29 @@ extension Bundle { static var module: Bundle { .main } }
     panel.revealForAttention()
     panel.render(store.queue.visible, state: 2, unread: 1)
     precondition(panel.trayExpanded)
+    let inputCard = panel.cards[0].contentView as! NotificationCard
+    precondition(inputCard.subviews.compactMap { $0 as? NSTextField }.contains {
+      $0.stringValue.contains("Needs your input")
+    })
+    store.queue.tick(seconds: 600)
+    precondition(store.queue.visible.count == 1, "Input notice must persist")
+    if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+      panel.emitInputNeeded()
+      CATransaction.flush()
+      RunLoop.current.run(until: Date().addingTimeInterval(0.35))
+      guard let overlay = panel.particlePanels.first else { fatalError("Missing input fountain") }
+      let questions = overlay.contentView!.layer!.sublayers!.filter { $0.name == "input-particle" }
+      precondition(questions.count == 24)
+      precondition(questions.allSatisfy { particle in
+        particle.sublayers?.contains { ($0 as? CATextLayer)?.string as? String == "?" } == true
+      })
+      precondition(overlay.parent === panel.petPanel && overlay.screen == panel.petPanel.screen)
+      precondition(questions.prefix(4).allSatisfy { ($0.presentation()?.opacity ?? 0) > 0.1 })
+      panel.petPanel.removeChildWindow(overlay)
+      overlay.close()
+      panel.particlePanels.removeAll()
+      print("Input question marks rise on the pet display; input notification stays visible.")
+    }
     precondition(panel.cards.count == 1 && panel.cards[0].isVisible)
     var opened = false
     panel.onOpen = { _ in opened = true }
@@ -59,12 +125,29 @@ extension Bundle { static var module: Bundle { .main } }
       RunLoop.current.run(until: Date().addingTimeInterval(0.35))
       precondition(panel.particlePanels.count == 1)
       let particles = panel.particlePanels[0].contentView!.layer!.sublayers!.filter { $0.name == "git-particle" }
-      precondition(particles.count == 2)
-      for particle in particles {
+      precondition(particles.count == 48)
+      precondition(panel.particlePanels[0].parent === panel.petPanel)
+      precondition(panel.particlePanels[0].screen == panel.petPanel.screen)
+      for particle in particles.prefix(4) {
         guard let shown = particle.presentation() else { fatalError("Droplet has no presentation layer") }
         print("Droplet opacity: \(shown.opacity), height: \(shown.position.y)")
         precondition(shown.opacity > 0.1 && shown.position.y > 16, "Droplet must be visible and rise")
       }
+    }
+    if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+      let original = panel.petPanel.frame
+      for screen in NSScreen.screens {
+        for overlay in panel.particlePanels { panel.petPanel.removeChildWindow(overlay); overlay.close() }
+        panel.particlePanels.removeAll()
+        panel.petPanel.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 100))
+        panel.emitGitActivities([.commit])
+        guard let overlay = panel.particlePanels.first else { fatalError("Missing fountain") }
+        precondition(overlay.parent === panel.petPanel)
+        precondition(overlay.screen == panel.petPanel.screen, "Fountain moved to another monitor")
+        precondition(screen.visibleFrame.contains(overlay.frame), "Fountain extends outside the pet display")
+      }
+      panel.petPanel.setFrame(original, display: true)
+      print("Fountain placement checked on \(NSScreen.screens.count) displays.")
     }
     let stackNotices = (0..<3).map { Notice(sessionID: "stack-\($0)", title: "Task \($0)", message: "Waiting for your input", needsInput: true) }
     panel.render(Array(stackNotices.prefix(2)), state: 2, unread: 3, pending: 1)

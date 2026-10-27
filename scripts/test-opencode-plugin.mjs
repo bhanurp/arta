@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+const root = await mkdtemp(path.join(os.tmpdir(), 'arta-plugin-'));
+process.env.ARTA_DATA_DIR = root;
+try {
+  const { ArtaPlugin } = await import('../Sources/CompanionApp/Resources/Integrations/arta-opencode.mjs');
+  const plugin = await ArtaPlugin({ directory: '/tmp/project' });
+  await plugin.event({ event: { type: 'session.status', properties: { sessionID: 's', status: { type: 'busy' } } } });
+  await plugin.event({ event: { type: 'permission.asked', properties: { sessionID: 's', id: 'q', permission: 'bash' } } });
+  await plugin.event({ event: { type: 'permission.replied', properties: { sessionID: 's', requestID: 'q' } } });
+  await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 's' } } });
+  await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 's' } } });
+  await plugin['tool.execute.before']({tool:'bash',sessionID:'s',callID:'test-call'}, {args:{command:'swift test'}});
+  await plugin['tool.execute.after']({tool:'bash',sessionID:'s',callID:'test-call',args:{command:'swift test'}}, {output:'All tests passed',metadata:{}});
+  const observations = await Promise.all((await readdir(path.join(root,'observations-v1/opencode'))).map(async file => JSON.parse(await readFile(path.join(root,'observations-v1/opencode',file),'utf8'))));
+  assert.equal(observations.length,2);
+  assert(observations.every(e => e.invocationID === 'test-call'));
+  assert.equal(observations.find(e => e.kind === 'tool.finished').exitCode,undefined);
+  const dir = path.join(root, 'events-v1', 'opencode');
+  const events = await Promise.all((await readdir(dir)).map(async f => JSON.parse(await readFile(path.join(dir, f), 'utf8'))));
+  assert.equal(events.filter(e => e.kind === 'turn.completed').length, 1);
+  assert.equal(events.find(e => e.kind === 'input.requested').requestID, 'q');
+  assert.equal(events.find(e => e.kind === 'input.resolved').requestID, 'q');
+  assert.equal(events.find(e => e.kind === 'turn.started').turnID, events.find(e => e.kind === 'turn.completed').turnID);
+  assert(events.every(e => e.integrationID === 'opencode' && e.schemaVersion === 1));
+  const exitRoot = path.join(root, 'immediate-exit');
+  const moduleURL = new URL('../Sources/CompanionApp/Resources/Integrations/arta-opencode.mjs', import.meta.url).href;
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    import { ArtaPlugin } from ${JSON.stringify(moduleURL)};
+    const plugin = await ArtaPlugin({directory:'/tmp/exit-test'});
+    plugin.event({event:{type:'session.status',properties:{sessionID:'exit',status:{type:'busy'}}}});
+    plugin.event({event:{type:'session.idle',properties:{sessionID:'exit'}}});
+    process.exit(0);
+  `], { env: { ...process.env, ARTA_DATA_DIR: exitRoot }, encoding: 'utf8' });
+  assert.equal(child.status, 0, child.stderr);
+  const exitFiles = await readdir(path.join(exitRoot, 'events-v1/opencode')).catch(() => []);
+  assert.equal(exitFiles.filter(f => f.endsWith('.json')).length, 2, 'Immediate process exit must not drop completion');
+  console.log('OpenCode callback lifecycle, immediate exit, and durable spool: passed');
+} finally { await rm(root, { recursive: true, force: true }); }
