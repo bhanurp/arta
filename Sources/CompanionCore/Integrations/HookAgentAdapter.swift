@@ -46,6 +46,7 @@ public enum HookAgentAdapter {
       message: (payload["last_assistant_message"] as? String).map { String($0.prefix(12000)) })
     if kind == .inputRequested { event.message = "Permission needed: " + tool }
     var events = [event]
+    events += CodexQuestionAdapter.events(payload: payload, base: event)
     if hook == "PostToolUse" {
       for request in Set([fingerprint, toolID].compactMap { $0 }) {
         var resolved = event

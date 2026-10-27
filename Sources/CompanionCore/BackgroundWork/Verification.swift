@@ -4,7 +4,7 @@ public enum VerificationStatus: String, Codable {
   case missing, incomplete, running, failed, passed, stale
   public var label: String {
     switch self {
-    case .missing: return "Verification missing"
+    case .missing: return "Checks not observed"
     case .incomplete: return "Verification incomplete"
     case .running: return "Checks running"
     case .failed: return "Checks failed"
@@ -184,8 +184,10 @@ public struct CheckRecord: Codable, Identifiable {
   public var interrupted = false
   public var noTests = false
   public var reportedFailure = false
+  public var captureNote: String?
   public var updated: Date
   public func status(current: WorkspaceScope?) -> VerificationStatus {
+    if captureNote != nil { return .incomplete }
     guard let finished else { return started == nil ? .incomplete : .running }
     if interrupted || noTests { return .incomplete }
     if reportedFailure { return .failed }

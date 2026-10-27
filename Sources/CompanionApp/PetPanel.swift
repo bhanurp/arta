@@ -507,6 +507,9 @@ final class PetPanel: NSObject {
     }
   }
   func configure(_ p: NSPanel) {
+    // Native verification still exercises real windows and animations without
+    // presenting a second companion on a developer's desktop.
+    if CommandLine.arguments.contains("--verify-presentation") { p.alphaValue = 0 }
     p.isOpaque = false
     p.backgroundColor = .clear
     p.hasShadow = false

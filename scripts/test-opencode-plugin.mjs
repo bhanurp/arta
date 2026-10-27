@@ -15,10 +15,14 @@ try {
   await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 's' } } });
   await plugin['tool.execute.before']({tool:'bash',sessionID:'s',callID:'test-call'}, {args:{command:'swift test'}});
   await plugin['tool.execute.after']({tool:'bash',sessionID:'s',callID:'test-call',args:{command:'swift test'}}, {output:'All tests passed',metadata:{}});
+  const wrapped = 'set -e\ncd web && npm test > /tmp/arta-tests.log 2>&1';
+  await plugin['tool.execute.before']({tool:'bash',sessionID:'s',callID:'wrapped-call'}, {args:{command:wrapped}});
+  await plugin['tool.execute.after']({tool:'bash',sessionID:'s',callID:'wrapped-call',args:{command:wrapped}}, {output:'finished',metadata:{exit:0}});
   const observations = await Promise.all((await readdir(path.join(root,'observations-v1/opencode'))).map(async file => JSON.parse(await readFile(path.join(root,'observations-v1/opencode',file),'utf8'))));
-  assert.equal(observations.length,2);
-  assert(observations.every(e => e.invocationID === 'test-call'));
-  assert.equal(observations.find(e => e.kind === 'tool.finished').exitCode,undefined);
+  assert.equal(observations.length,4);
+  assert(observations.every(e => ['test-call','wrapped-call'].includes(e.invocationID)));
+  assert.equal(observations.find(e => e.kind === 'tool.finished' && e.invocationID === 'test-call').exitCode,undefined);
+  assert(observations.filter(e => e.invocationID === 'wrapped-call').every(e => e.command === wrapped));
   const dir = path.join(root, 'events-v1', 'opencode');
   const events = await Promise.all((await readdir(dir)).map(async f => JSON.parse(await readFile(path.join(dir, f), 'utf8'))));
   assert.equal(events.filter(e => e.kind === 'turn.completed').length, 1);

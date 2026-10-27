@@ -89,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.onCodexSetupAction = { [weak self] action in self?.codexSetupAction(action) }
     panel.onOpen = { [weak self] notice in self?.openNotice(notice) }
     status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    if CommandLine.arguments.contains("--verify-presentation") { status.isVisible = false }
     status.button?.title = ""
     status.button?.image = AppIconAppearance.image(for: .selected(), size: 20)
     status.button?.imagePosition = .imageOnly
@@ -137,6 +138,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     if CommandLine.arguments.contains("--demo") { demo() }
     if installed { discover() }
     refresh()
+    if CommandLine.arguments.contains("--verify-presentation") {
+      precondition(panel.petPanel.alphaValue == 0 && !status.isVisible)
+      print("Verification presentation stays off the desktop.")
+      fflush(stdout)
+    }
     timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
       self?.poll()
     }

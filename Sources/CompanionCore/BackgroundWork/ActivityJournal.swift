@@ -89,7 +89,7 @@ public struct BackgroundWork: Codable {
         time: event.occurredAt)
     }
     guard [.toolStarted, .toolFinished].contains(event.kind), let invocation = event.invocationID,
-      let command = event.command, let label = CheckClassifier.label(command)
+      let command = event.command, let capture = CheckClassifier.capture(command)
     else {
       prune()
       return
@@ -100,8 +100,9 @@ public struct BackgroundWork: Codable {
       checks.first(where: { $0.id == id })
       ?? CheckRecord(
         id: id, sessionID: event.key.storageID,
-        turnID: event.turnID, workspace: event.workspace, label: label,
+        turnID: event.turnID, workspace: event.workspace, label: capture.label,
         signature: AgentObservation.digest(command), updated: event.occurredAt)
+    record.captureNote = capture.note
     guard record.turnID == event.turnID, record.signature == AgentObservation.digest(command),
       record.workspace == event.workspace
     else { return }

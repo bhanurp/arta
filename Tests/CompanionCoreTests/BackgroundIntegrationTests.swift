@@ -66,8 +66,10 @@ final class BackgroundIntegrationTests: XCTestCase {
       "cargo test -- --list", "pytest '--help'", "swift test -l", "swift test -help",
       "swift test --skip-build list", "swift test --show-codecov-path", "pytest -V",
       "pytest --fixtures", "pytest --markers", "go test -n", "go test -c",
+      "make test -n", "ctest -N", "pytest \"$(date)\"", "pytest \"`date`\"",
     ] {
       XCTAssertNil(CheckClassifier.label(command))
+      XCTAssertNil(CheckClassifier.capture(command), command)
     }
   }
 }

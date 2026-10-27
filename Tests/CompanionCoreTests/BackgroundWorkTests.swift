@@ -3,6 +3,28 @@ import XCTest
 @testable import CompanionCore
 
 final class BackgroundWorkTests: XCTestCase {
+  func testScriptOutcomesCannotQualifyIndividualChecksEvenWithCompleteScope() throws {
+    for (command, exit) in [
+      ("false && swift test", 1), ("pytest || true", 0), ("set -e\nswift test > /tmp/log 2>&1", 0),
+    ] {
+      var work = BackgroundWork()
+      var start = observation(.toolStarted)
+      start.command = command
+      start.scope = WorkspaceScope(
+        workspace: "/tmp/repo", digest: "abc", generation: 1, capturedAt: .distantPast,
+        continuous: true)
+      var finish = observation(.toolFinished, exit: exit)
+      finish.command = command
+      finish.scope = start.scope
+      finish.scope?.capturedAt = finish.occurredAt
+      try work.apply(start)
+      try work.apply(finish)
+      XCTAssertEqual(work.checks.count, 1)
+      XCTAssertNotNil(work.checks.first?.captureNote)
+      XCTAssertEqual(work.verification(sessionID: start.key.storageID, turnID: "t"), .incomplete)
+    }
+  }
+
   func observation(_ kind: AgentObservation.Kind, exit: Int? = nil) -> AgentObservation {
     var value = AgentObservation(
       integrationID: "codex", sessionID: "s", producerEpoch: "p", kind: kind, workspace: "/tmp/repo"

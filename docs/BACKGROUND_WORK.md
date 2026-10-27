@@ -8,7 +8,8 @@ make model calls.
 
 Completion cards show an explicit status:
 
-- **Verification missing:** no qualifying check was observed for this turn.
+- **Checks not observed:** no recognized check was captured for this turn. This
+  does not mean the agent failed to test its work.
 - **Verification incomplete:** a check was observed, but its outcome, turn
   association, or file-change coverage is unavailable.
 - **Checks running:** an observed check has not supplied a terminal outcome.
@@ -27,9 +28,19 @@ bodies may still contain the agent's own response; that text is not verification
 
 Claude Code, Codex and OpenCode adapters can observe recognized direct check
 commands when their installed versions expose the necessary tool identity.
-Recognition deliberately accepts a small set of direct Swift/Python/Rust/Go
-commands and supported flags; compound shell commands and unknown flags may be
-unclassified. Help, listing, dry-run and no-run modes do not count as checks.
+Strict direct Swift/Python/Rust/Go commands retain their existing qualification
+rules. Broader capture also recognizes simple command sequences, output
+redirection, literal `sh`/`bash`/`zsh` wrappers, environment prefixes, Python
+unittest, common npm/pnpm/yarn/bun tasks, make tasks, and selected JavaScript,
+.NET, JVM and CMake check commands.
+
+Scripts and project tasks are recorded with an explicit attribution note. A
+command mentioned in a script might be skipped, and the script's final exit code
+does not identify each check's outcome. Such captures stay incomplete even if
+the overall command succeeds. The parser never executes text; dynamic shell
+substitutions, heredocs and control structures are left unclassified. Recognition
+is bounded and does not claim to support the whole shell language. New capture
+applies to new events; Arta does not invent evidence for older finished turns.
 
 **The built-in file snapshot observer does not certify continuous file-change
 coverage yet.** Built-in observations therefore remain missing/incomplete where
@@ -44,8 +55,12 @@ Choose **Return briefing** from the menu bar, or open the briefing card from the
 bell when there is room in the notification stack. The bell shows a small dot
 when a briefing is available and there are no unread notification badges.
 
-The briefing groups current pending decisions, investigation/verification gaps,
-results, and still-working sessions. It normally says **Since last reviewed**.
+The briefing groups current pending decisions, actual failures needing
+investigation, published results, completed work, and still-working sessions.
+Completed work without captured checks says **Completed · checks not observed**.
+Detected commands without sufficient outcome evidence say **Completed · check
+results unavailable**. Neither missing nor incomplete evidence alone places a
+session under Needs investigation. It normally says **Since last reviewed**.
 After two minutes idle, lock, or sleep, it can say **While you were away**. It
 becomes available quietly; it does not automatically open a window on return.
 

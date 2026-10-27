@@ -23,7 +23,9 @@ export const ArtaPlugin = async ({ directory }) => {
     if (input.tool !== 'bash' || typeof input.callID !== 'string' || typeof input.sessionID !== 'string') return;
     const prior = invocations.get(input.callID);
     const command = starting ? args?.command : prior?.command || args?.command;
-    if (typeof command !== 'string' || command.length > 48000 || !/^(?:\S*\/)?(?:swift\s+(?:test|build|format\s+lint)|pytest(?:\s|$)|python3\s+-m\s+pytest|cargo\s+test|go\s+test)/.test(command)) return;
+    // Only a coarse prefilter. Core performs bounded shell/task recognition and
+    // decides whether an outcome can actually be attributed to a check.
+    if (typeof command !== 'string' || command.length > 48000 || !/\b(?:swift|pytest|python3?|cargo|go|npm|pnpm|yarn|bun|npx|vitest|jest|eslint|tsc|prettier|make|ctest|dotnet|mvn|gradle)\b/.test(command)) return;
     if (starting) invocations.set(input.callID, { command, turnID: sessions.get(input.sessionID)?.busy ? sessions.get(input.sessionID).turnID : undefined });
     const value = {
       schemaVersion: 1, eventID: randomUUID(), integrationID: 'opencode', sourceInstanceID: 'local',

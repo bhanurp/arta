@@ -16,12 +16,17 @@ cleanup() {
 trap cleanup EXIT
 if [[ -e "$HIDDEN" ]]; then echo "Previous packaging check has not restored its resources" >&2; exit 1; fi
 if [[ -d "$RESOURCE" ]]; then mv "$RESOURCE" "$HIDDEN"; fi
-ARTA_DATA_DIR="$CHECK_DATA" CLAUDE_CONFIG_DIR="$CHECK_DATA/claude" CODEX_HOME="$CHECK_DATA/codex" XDG_CONFIG_HOME="$CHECK_DATA/config" dist/Arta.app/Contents/MacOS/CompanionApp --demo > dist/packaged-launch.log 2>&1 &
+ARTA_DATA_DIR="$CHECK_DATA" CLAUDE_CONFIG_DIR="$CHECK_DATA/claude" CODEX_HOME="$CHECK_DATA/codex" XDG_CONFIG_HOME="$CHECK_DATA/config" dist/Arta.app/Contents/MacOS/CompanionApp --demo --verify-presentation > dist/packaged-launch.log 2>&1 &
 CHECK_PID=$!
 sleep 3
 if ! kill -0 "$CHECK_PID" 2>/dev/null; then
   cat dist/packaged-launch.log
   echo 'Packaged app failed to launch without build-machine resources.' >&2
+  exit 1
+fi
+if ! /usr/bin/grep -q 'Verification presentation stays off the desktop.' dist/packaged-launch.log; then
+  cat dist/packaged-launch.log
+  echo 'Packaged verification did not confirm its presentation was hidden.' >&2
   exit 1
 fi
 printf 'Packaged app launched without SwiftPM build resources.\n'
