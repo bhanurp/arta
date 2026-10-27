@@ -23,6 +23,7 @@ final class BackgroundWorkController: NSObject, NSTextViewDelegate {
         contentRect: NSRect(x: 0, y: 0, width: 620, height: 540),
         styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
       w.appearance = NSAppearance(named: .darkAqua)
+      if CommandLine.arguments.contains("--verify-presentation") { w.alphaValue = 0 }
       w.title = "Arta · Background work"
       w.isReleasedWhenClosed = false
       w.minSize = NSSize(width: 620, height: 420)
@@ -108,6 +109,7 @@ final class BackgroundWorkController: NSObject, NSTextViewDelegate {
         append(
           "\(check.updated.formatted(date: .abbreviated, time: .shortened)) · \(check.turnID == turn && turn != nil ? "current turn" : "earlier or unassociated turn")\n"
         )
+        if let note = check.captureNote { append(note + "\n") }
         if check.exitCode == nil {
           append("The source did not provide an authoritative exit status.\n")
         }
@@ -150,7 +152,7 @@ final class BackgroundWorkController: NSObject, NSTextViewDelegate {
         guard !values.isEmpty else { continue }
         let labels: [BriefingItem.Category: String] = [
           .input: "Needs your input now", .investigation: "Needs investigation",
-          .results: "Results ready", .working: "Still working",
+          .results: "Results ready", .completed: "Completed", .working: "Still working",
         ]
         append(labels[category]! + "\n", bold: true)
         for item in values {

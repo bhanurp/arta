@@ -1,7 +1,9 @@
 import Foundation
 
 public struct BriefingItem: Identifiable {
-  public enum Category: String, CaseIterable { case input, investigation, results, working }
+  public enum Category: String, CaseIterable {
+    case input, investigation, results, completed, working
+  }
   public var id: String
   public var sessionID: String
   public var category: Category
@@ -58,8 +60,13 @@ public enum BriefingBuilder {
         category = .investigation
         detail = "Response failed"
       case .finished:
-        category = verification == .passed ? .results : .investigation
-        detail = verification.label
+        category =
+          verification == .failed ? .investigation : artifacts.isEmpty ? .completed : .results
+        switch verification {
+        case .missing: detail = "Completed · checks not observed"
+        case .incomplete: detail = "Completed · check results unavailable"
+        default: detail = "Completed · " + verification.label.lowercased()
+        }
       default:
         guard !artifacts.isEmpty else { continue }
         category = .results

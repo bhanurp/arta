@@ -48,6 +48,15 @@ explicit dismissal. OpenCode support targets its documented v1 plugin API; v2-on
 version-specific adapter. The plugin does not expose general question prompts or Git activity; the passive local-server
 observer can read pending questions when its `/question` endpoint is available. Codex Git receipts accept structured success or restricted Git confirmations with commit hashes verified against the repository. This Git-specific path does not establish generic test success.
 
+Codex question tools (`request_user_input` and `request_user_input_async`) create
+input notices for each question using their native tool-call identity. Synchronous
+questions resolve when that tool returns. Async acceptance only confirms display;
+the notice remains pending through other tools and response completion until the
+matching structured question reply arrives through `UserPromptSubmit`. Ordinary
+messages and replies to other questions do not clear it. This reply envelope is
+host-specific; unsupported reply formats stay pending rather than guessing that
+the user answered. Hooks do not answer questions or change approval decisions.
+
 A sample notification tests presentation. “Receiving events” in settings confirms bridge traffic or successfully observed live sessions;
 “Configured · waiting for an event” does not claim that hook trust or live connectivity succeeded.
 Native focus is exact only where the host exposes verifiable process/TTY/tab identity. Other

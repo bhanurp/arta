@@ -11,7 +11,7 @@ public enum HookObservationAdapter {
       ["PreToolUse", "PostToolUse", "PostToolUseFailure"].contains(hook),
       let invocation = object["tool_use_id"] as? String,
       let input = object["tool_input"] as? [String: Any], let command = input["command"] as? String,
-      CheckClassifier.label(command) != nil
+      CheckClassifier.capture(command) != nil
     else { return [] }
     var event = AgentObservation(
       integrationID: integrationID, sessionID: session, producerEpoch: "hooks",

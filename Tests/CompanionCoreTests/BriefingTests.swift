@@ -3,6 +3,55 @@ import XCTest
 @testable import CompanionCore
 
 final class BriefingTests: XCTestCase {
+  func testFinishedWorkWithoutChecksIsCompletedNeutrally() throws {
+    var store = SessionStore()
+    let event = AgentEvent(
+      integrationID: "codex", sourceInstanceID: "local", sessionID: "s", runID: "r",
+      kind: .turnCompleted, turnID: "t", project: "/tmp/Arta")
+    try AgentReducer.apply(event, to: &store)
+    let item = try XCTUnwrap(BriefingBuilder.build(store).items.first)
+    XCTAssertEqual(item.category.rawValue, "completed")
+    XCTAssertEqual(item.detail, "Completed · checks not observed")
+    XCTAssertTrue(item.finished)
+    XCTAssertEqual(VerificationStatus.missing.label, "Checks not observed")
+  }
+
+  func testObservedFailureStillNeedsInvestigation() throws {
+    var store = SessionStore()
+    let event = AgentEvent(
+      integrationID: "codex", sourceInstanceID: "local", sessionID: "s", runID: "r",
+      kind: .turnCompleted, turnID: "t", project: "/tmp/Arta")
+    try AgentReducer.apply(event, to: &store)
+    var observation = AgentObservation(
+      integrationID: "codex", sessionID: "s", producerEpoch: "p", kind: .toolFinished,
+      workspace: "/tmp/Arta")
+    observation.turnID = "t"
+    observation.invocationID = "call"
+    observation.command = "swift test"
+    observation.exitCode = 1
+    try store.background?.apply(observation)
+    XCTAssertEqual(BriefingBuilder.build(store).items.first?.category, .investigation)
+  }
+
+  func testFinishedWorkWithUnattributedChecksIsAlsoNeutral() throws {
+    var store = SessionStore()
+    let event = AgentEvent(
+      integrationID: "codex", sourceInstanceID: "local", sessionID: "s", runID: "r",
+      kind: .turnCompleted, turnID: "t", project: "/tmp/Arta")
+    try AgentReducer.apply(event, to: &store)
+    var observation = AgentObservation(
+      integrationID: "codex", sessionID: "s", producerEpoch: "p", kind: .toolFinished,
+      workspace: "/tmp/Arta")
+    observation.turnID = "t"
+    observation.invocationID = "call"
+    observation.command = "npm test > /tmp/log"
+    observation.exitCode = 0
+    try store.background?.apply(observation)
+    let item = try XCTUnwrap(BriefingBuilder.build(store).items.first)
+    XCTAssertEqual(item.category.rawValue, "completed")
+    XCTAssertEqual(item.detail, "Completed · check results unavailable")
+  }
+
   func testReviewSnapshotDoesNotConsumeEventsArrivingLaterOrResolveInput() throws {
     var store = SessionStore()
     let event = AgentEvent(

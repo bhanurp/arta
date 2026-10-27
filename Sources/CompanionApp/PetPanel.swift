@@ -507,6 +507,9 @@ final class PetPanel: NSObject {
     }
   }
   func configure(_ p: NSPanel) {
+    // Native verification still exercises real windows and animations without
+    // presenting a second companion on a developer's desktop.
+    if CommandLine.arguments.contains("--verify-presentation") { p.alphaValue = 0 }
     p.isOpaque = false
     p.backgroundColor = .clear
     p.hasShadow = false
@@ -655,6 +658,7 @@ final class PetPanel: NSObject {
         let backing = FloatingPanel(
           contentRect: NSRect(x: 0, y: 0, width: 410, height: 64),
           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        backing.alphaValue = index == 0 ? 0.88 : 0.7
         configure(backing)
         let view = StackBackingView(frame: NSRect(x: 0, y: 0, width: 410, height: 64))
         view.material = .hudWindow
@@ -670,7 +674,6 @@ final class PetPanel: NSObject {
         view.setAccessibilityRole(.button)
         view.setAccessibilityLabel("Expand notifications")
         backing.contentView = view
-        backing.alphaValue = index == 0 ? 0.88 : 0.7
         stackBackings.append(backing)
       }
     }

@@ -16,6 +16,11 @@ import CompanionCore
     controller.show()
     guard let window = NSApp.windows.first(where: { $0.title == "Arta · Background work" }) else { fatalError("Briefing did not open") }
     precondition(window.isVisible && window.styleMask.contains(.closable))
+    precondition(window.alphaValue == 0, "Verification must not show unrelated desktop windows")
+    let scroll = window.contentView!.subviews.compactMap { $0 as? NSScrollView }.first!
+    let content = (scroll.documentView as! NSTextView).string
+    precondition(content.contains("Completed · checks not observed"))
+    precondition(!content.contains("Needs investigation"), "Missing evidence is not a failure")
     let buttons = window.contentView!.subviews.compactMap { $0 as? NSButton }
     guard let review = buttons.first(where: { $0.title == "Mark reviewed" }) else { fatalError("Missing review action") }
     review.performClick(nil)

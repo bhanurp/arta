@@ -34,7 +34,7 @@ extension Bundle { static var module: Bundle { .main } }
     precondition(resultOpened == "result-0")
     resultButtons.first { $0.title == "More…" }!.performClick(nil)
     precondition(moreOpened)
-    precondition(resultCard.subviews.compactMap { $0 as? NSTextField }.contains { $0.stringValue == "Verification missing" })
+    precondition(resultCard.subviews.compactMap { $0 as? NSTextField }.contains { $0.stringValue == "Checks not observed" })
     precondition(!resultCard.subviews.compactMap { $0 as? NSTextField }.contains { $0.stringValue == "✓" }, "Missing verification must not show success")
     let resultLayout = PanelLayout(screen: CGRect(x: 0, y: 0, width: 800, height: 700), petOrigin: CGPoint(x: 600, y: 600), count: 2, cardHeights: [resultHeight, 88], footerHeight: 64)
     precondition(resultLayout.cards.count == 2 && resultLayout.footer != nil)
@@ -145,12 +145,24 @@ extension Bundle { static var module: Bundle { .main } }
         precondition(overlay.parent === panel.petPanel)
         precondition(overlay.screen == panel.petPanel.screen, "Fountain moved to another monitor")
         precondition(screen.visibleFrame.contains(overlay.frame), "Fountain extends outside the pet display")
+        let petRect = panel.petPanel.convertToScreen(panel.pet.convert(panel.pet.bounds, to: nil))
+        let particle = overlay.contentView!.layer!.sublayers!.first { $0.name == "git-particle" }!
+        let burst = particle.animation(forKey: "float-and-fade") as! CAAnimationGroup
+        let drift = burst.animations!.first as! CAKeyframeAnimation
+        let first = (drift.values!.first as! NSValue).pointValue
+        let emitter = CGPoint(x: overlay.frame.minX + first.x, y: overlay.frame.minY + first.y)
+        precondition(petRect.contains(emitter), "Fountain must start inside the moved pet")
+        let avatars = NSApp.windows.flatMap { $0.contentView?.subviews ?? [] }.filter { $0 is PetView }
+        precondition(avatars.count == 1, "Git activity must not create another avatar")
       }
       panel.petPanel.setFrame(original, display: true)
       print("Fountain placement checked on \(NSScreen.screens.count) displays.")
     }
+    print("Verification pet: pid=\(ProcessInfo.processInfo.processIdentifier), origin=\(panel.petPanel.frame.origin), opacity=\(panel.petPanel.alphaValue)")
+    precondition(panel.petPanel.alphaValue == 0, "Verification must not show a duplicate desktop pet")
     let stackNotices = (0..<3).map { Notice(sessionID: "stack-\($0)", title: "Task \($0)", message: "Waiting for your input", needsInput: true) }
     panel.render(Array(stackNotices.prefix(2)), state: 2, unread: 3, pending: 1)
+    precondition((panel.cards + panel.stackBackings + panel.particlePanels).allSatisfy { $0.alphaValue == 0 }, "Rendered verification notification and fountain windows must stay invisible")
     panel.revealForAttention()
     precondition(panel.stackCollapsed)
     precondition(panel.cards[0].isVisible && !panel.cards[1].isVisible)

@@ -6,4 +6,4 @@ BUILD="$(swift build --show-bin-path)"
 CHECK_DIR="$(mktemp -d)"
 trap 'rm -rf "$CHECK_DIR"' EXIT
 swiftc -parse-as-library -I "$BUILD/Modules" scripts/CheckBackgroundWork.swift Sources/CompanionApp/BackgroundWorkController.swift "$BUILD"/CompanionCore.build/*.o -o "$CHECK_DIR/check"
-"$CHECK_DIR/check"
+"$CHECK_DIR/check" --verify-presentation
