@@ -75,6 +75,8 @@ public struct BackgroundWork: Codable {
       if let index = artifacts.firstIndex(where: { $0.id == id }) {
         if artifacts[index].publication == publication
           && artifacts[index].fingerprint == fingerprint
+          && artifacts[index].turnID == artifact.turnID
+          && artifacts[index].workspace == artifact.workspace
         {
           return
         }

@@ -28,11 +28,42 @@ extension AppDelegate {
     return choices[picker.indexOfSelectedItem]
   }
   @objc func disable() {
+    let choices = registry.manifests.filter { integrationSetup.installed($0.id) }
+    guard !choices.isEmpty else {
+      diagnostic = "No integrations are enabled."
+      showSessions()
+      return
+    }
+    let alert = NSAlert()
+    alert.messageText = "Disable tracking"
+    alert.informativeText = "Choose the integration to disable. Other integrations stay enabled."
+    let picker = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 260, height: 30))
+    picker.addItems(withTitles: choices.map(\.name))
+    if let index = choices.firstIndex(where: { $0.id == selectedIntegrationID }) {
+      picker.selectItem(at: index)
+    }
+    alert.accessoryView = picker
+    alert.addButton(withTitle: "Disable tracking")
+    alert.addButton(withTitle: "Cancel")
+    NSApp.activate(ignoringOtherApps: true)
+    guard alert.runModal() == .alertFirstButtonReturn else { return }
+    let target = choices[picker.indexOfSelectedItem]
     do {
-      try integrationSetup.disable(selectedIntegrationID)
+      guard integrationSetup.installed(target.id) else {
+        throw IntegrationError.unavailable("\(target.name) tracking is already disabled.")
+      }
+      try integrationSetup.disable(target.id)
+      guard !integrationSetup.installed(target.id) else {
+        throw IntegrationError.unavailable("\(target.name) tracking could not be disabled.")
+      }
+      selectedIntegrationID = target.id
+      if let index = registry.manifests.firstIndex(where: { $0.id == target.id }) {
+        integrationPicker?.selectItem(at: index)
+      }
+      enableButton?.title = "Enable tracking"
       installed = registry.manifests.contains { integrationSetup.installed($0.id) }
       diagnostic =
-        "Tracking disabled for the selected integration. Other integrations and settings were preserved."
+        "\(target.name) tracking disabled. Other integrations and settings were preserved."
     } catch { diagnostic = error.localizedDescription }
     showSessions()
     refresh()

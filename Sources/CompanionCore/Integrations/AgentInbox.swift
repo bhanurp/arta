@@ -24,7 +24,7 @@ public struct AgentInbox {
     try data.write(to: file, options: .atomic)
     try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
   }
-  public func pending() throws -> [AgentEvent] {
+  public func pending(diagnostic: ((String) -> Void)? = nil) throws -> [AgentEvent] {
     guard IntegrationManifest.validID(integrationID) else { throw IntegrationError.invalidManifest }
     guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
     let files = try FileManager.default.contentsOfDirectory(
@@ -45,6 +45,7 @@ public struct AgentInbox {
         }
         events.append(event)
       } catch {
+        diagnostic?("An invalid integration event was set aside: \(error.localizedDescription)")
         // Move aside malformed input once; a bad producer must not block healthy sessions.
         try? FileManager.default.moveItem(at: file, to: file.appendingPathExtension("invalid"))
       }

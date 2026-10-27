@@ -3,6 +3,13 @@ import XCTest
 @testable import CompanionCore
 
 final class ObservationAdapterTests: XCTestCase {
+  func testRepositoryRelativeExecutablesAreNotBuiltinChecks() {
+    for command in ["./pytest", "scripts/swift test", "tools/cargo test"] {
+      XCTAssertNil(CheckClassifier.label(command))
+    }
+    XCTAssertNotNil(CheckClassifier.label("/usr/bin/swift test"))
+  }
+
   func testCodexRawOutputStaysUnknownAndNativeToolIdentityIsKept() throws {
     let data = Data(
       #"{"session_id":"s","turn_id":"t","hook_event_name":"PostToolUse","tool_use_id":"call","tool_name":"Bash","cwd":"/tmp/project","tool_input":{"command":"swift test"},"tool_response":"All tests passed"}"#

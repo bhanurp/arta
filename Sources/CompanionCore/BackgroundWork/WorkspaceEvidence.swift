@@ -40,7 +40,7 @@ public enum WorkspaceEvidence {
       guard size <= 64 * 1024 * 1024 else {
         throw IntegrationError.unavailable("Workspace snapshot is too large.")
       }
-      hash.update(data: try Data(contentsOf: file, options: [.mappedIfSafe]))
+      hash.update(data: try Data(contentsOf: file))
       hash.update(data: Data([0]))
     }
     return WorkspaceScope(

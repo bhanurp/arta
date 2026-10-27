@@ -9,18 +9,21 @@ public enum ArtifactPublisher {
       return arguments[index + 1]
     }
     guard let provider = value("--integration"), let session = value("--session"),
-      let workspace = value("--workspace"), let location = value("--file") ?? value("--url")
+      let requestedWorkspace = value("--workspace"),
+      let location = value("--file") ?? value("--url")
     else {
       throw IntegrationError.unavailable(
         "Usage: arta publish --integration AGENT --session SESSION --workspace FOLDER [--turn TURN] --file FILE | --url URL [--title TITLE]"
       )
     }
+    let workspaceURL = URL(fileURLWithPath: requestedWorkspace).standardizedFileURL
+    let workspace = workspaceURL.path
     let kind: ArtifactPublication.Kind = value("--file") == nil ? .web : .file
     var artifact = ArtifactPublication(
       title: value("--title") ?? URL(fileURLWithPath: location).lastPathComponent, kind: kind,
       location: location)
     artifact.canonicalRoot =
-      URL(fileURLWithPath: workspace).standardizedFileURL.resolvingSymlinksInPath().path
+      workspaceURL.resolvingSymlinksInPath().path
     let target = try ArtifactCatalog.resolve(artifact, workspace: workspace)
     if case .file(let url) = target { artifact.location = url.path }
     artifact.id =

@@ -42,6 +42,15 @@ extension Bundle { static var module: Bundle { .main } }
     precondition(resultLayout.cards.allSatisfy { CGRect(x: 0, y: 0, width: 800, height: 700).contains($0) })
     let panel = PetPanel()
     panel.setVisible(true)
+    var webNotice = Notice(sessionID: "web-result", title: "Preview", message: "Response finished")
+    webNotice.results = [ArtifactPublication(id: "preview", title: "Preview", kind: .web, location: "https://first.example/report")]
+    panel.render([webNotice], state: 0, unread: 1)
+    webNotice.results![0].location = "https://second.example/report"
+    panel.render([webNotice], state: 0, unread: 1)
+    let updatedWebCard = panel.cards[0].contentView as! NotificationCard
+    precondition(updatedWebCard.subviews.compactMap { $0 as? NSButton }.contains {
+      $0.toolTip == "https://second.example/report" && $0.title.contains("second.example")
+    }, "Result destination changes must update the visible button and tooltip")
     for choice in AppIconChoice.allCases {
       panel.pet.selectAppearance(choice)
       precondition(panel.pet.appearanceChoice == choice)

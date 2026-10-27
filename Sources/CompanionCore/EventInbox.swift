@@ -43,17 +43,26 @@ public struct EventInbox {
     try acknowledge(events)
     return events
   }
-  public func pendingEvents() throws -> [SessionEvent] {
+  public func pendingEvents(diagnostic: ((String) -> Void)? = nil) throws -> [SessionEvent] {
     guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
     var events: [SessionEvent] = []
     for file in try FileManager.default.contentsOfDirectory(
-      at: directory, includingPropertiesForKeys: nil) where file.pathExtension == "json"
-    {
-      if let data = try? Data(contentsOf: file),
-        let e = try? JSONDecoder().decode(SessionEvent.self, from: data)
-      {
-        events.append(e)
-      } else {
+      at: directory,
+      includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+    where file.pathExtension == "json" {
+      do {
+        let info = try file.resourceValues(forKeys: [
+          .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey,
+        ])
+        guard info.isRegularFile == true, info.isSymbolicLink != true,
+          (info.fileSize ?? Int.max) <= 2_097_152
+        else {
+          throw IntegrationError.invalidEvent
+        }
+        let event = try JSONDecoder().decode(SessionEvent.self, from: Data(contentsOf: file))
+        events.append(try ClaudeTracking.normalized(event))
+      } catch {
+        diagnostic?("An invalid Claude event was set aside: \(error.localizedDescription)")
         try? FileManager.default.moveItem(at: file, to: file.appendingPathExtension("invalid"))
       }
     }

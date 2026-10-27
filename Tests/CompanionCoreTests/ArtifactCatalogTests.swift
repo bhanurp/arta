@@ -3,6 +3,40 @@ import XCTest
 @testable import CompanionCore
 
 final class ArtifactCatalogTests: XCTestCase {
+  func testPublisherNormalizesRelativeWorkspaceBeforeQueueing() throws {
+    let relative = ".build/arta-relative-" + UUID().uuidString
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      .appendingPathComponent(relative)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try Data("report".utf8).write(to: root.appendingPathComponent("report.txt"))
+    let observation = try ArtifactPublisher.observation(arguments: [
+      "arta", "publish", "--integration", "codex", "--session", "s", "--workspace", relative,
+      "--file", "report.txt",
+    ])
+    XCTAssertEqual(observation.workspace, root.standardizedFileURL.path)
+    var work = BackgroundWork()
+    try work.apply(observation)
+    XCTAssertNoThrow(try ArtifactCatalog.resolve(XCTUnwrap(work.artifacts.first)))
+  }
+
+  func testStablePublicationCanBeAssociatedWithANewerTurn() throws {
+    var work = BackgroundWork()
+    var event = AgentObservation(
+      integrationID: "codex", sessionID: "s", producerEpoch: "p", kind: .artifactPublished,
+      workspace: "/tmp/Arta")
+    event.artifact = ArtifactPublication(
+      id: "latest-report", title: "Report", kind: .web, location: "https://example.com/report")
+    event.turnID = "first"
+    try work.apply(event)
+    event.eventID = UUID().uuidString
+    event.turnID = "second"
+    try work.apply(event)
+    XCTAssertEqual(work.artifacts.count, 1)
+    XCTAssertEqual(work.artifacts.first?.turnID, "second")
+    XCTAssertEqual(work.journal.last?.turnID, "second")
+  }
+
   func testRelativeFileResolvesAndSiblingOrSymlinkEscapeIsRejected() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -67,7 +101,9 @@ final class ArtifactCatalogTests: XCTestCase {
     try FileManager.default.createSymbolicLink(at: link, withDestinationURL: second)
     var work = BackgroundWork()
     try work.apply(observation)
-    XCTAssertThrowsError(try ArtifactCatalog.resolve(XCTUnwrap(work.artifacts.first)))
+    let record = try XCTUnwrap(work.artifacts.first)
+    XCTAssertEqual(record.canonicalRoot, first.resolvingSymlinksInPath().path)
+    XCTAssertThrowsError(try ArtifactCatalog.resolve(record))
   }
 
   func testWebTargetsRejectExecutableSchemesAndCredentialUrls() throws {

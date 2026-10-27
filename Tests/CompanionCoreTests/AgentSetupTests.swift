@@ -81,5 +81,9 @@ final class AgentSetupTests: XCTestCase {
     var invalid = manifest
     invalid.id = "../codex"
     XCTAssertThrowsError(try registry.register(invalid))
+    for id in [".", ".."] {
+      invalid.id = id
+      XCTAssertThrowsError(try registry.register(invalid))
+    }
   }
 }

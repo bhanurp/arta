@@ -3,6 +3,57 @@ import XCTest
 @testable import CompanionCore
 
 final class AgentEngineTests: XCTestCase {
+  func testDiscoveryPlaceholderAdoptsHookRequestsAndPreservesCurrentTurn() throws {
+    var store = SessionStore()
+    var initial = event(.turnStarted, provider: "codex")
+    initial.runID = "discovery"
+    initial.pid = 42
+    initial.processStart = "same-process"
+    initial.tty = "/dev/ttys001"
+    try AgentReducer.apply(initial, to: &store)
+    var request = event(.inputRequested, provider: "codex", request: "q", time: 11)
+    request.runID = "hooks"
+    XCTAssertTrue(try AgentReducer.apply(request, to: &store))
+    XCTAssertEqual(store.sessions[request.key.storageID]?.state, .needsInput)
+    XCTAssertEqual(store.agentLifecycles?[request.key.storageID]?.currentTurnID, "t1")
+    XCTAssertEqual(store.sessions[request.key.storageID]?.pid, 42)
+    XCTAssertEqual(store.sessions[request.key.storageID]?.tty, "/dev/ttys001")
+    var resolved = event(.inputResolved, provider: "codex", request: "q", time: 12)
+    resolved.runID = "hooks"
+    try AgentReducer.apply(resolved, to: &store)
+    XCTAssertEqual(store.sessions[request.key.storageID]?.state, .working)
+    var finished = event(.turnCompleted, provider: "codex", time: 13)
+    finished.runID = "hooks"
+    XCTAssertTrue(try AgentReducer.apply(finished, to: &store))
+    XCTAssertEqual(store.sessions[request.key.storageID]?.state, .finished)
+  }
+
+  func testResolvedRequestHistoryIsBoundedAndRecentResolutionStillSuppressesReplay() throws {
+    var store = SessionStore()
+    for index in 0..<1030 {
+      try AgentReducer.apply(
+        event(.inputResolved, request: "q-\(index)", time: Double(index)), to: &store)
+    }
+    let lifecycle = try XCTUnwrap(store.agentLifecycles?.values.first)
+    XCTAssertEqual(lifecycle.resolvedRequests.count, 1024)
+    XCTAssertTrue(lifecycle.resolvedRequests.contains("q-1029"))
+    XCTAssertFalse(lifecycle.resolvedRequests.contains("q-0"))
+    XCTAssertFalse(
+      try AgentReducer.apply(event(.inputRequested, request: "q-1029", time: 1040), to: &store))
+  }
+
+  func testNativeIdentifiersBecomeURLSafeStorageKeys() throws {
+    let key = SessionKey(
+      integrationID: "external-agent", sourceInstanceID: "host /?#", nativeID: "session /?# 日本語")
+    XCTAssertTrue(
+      key.storageID.utf8.allSatisfy {
+        (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || $0 == 45
+          || $0 == 95
+      })
+    let url = try XCTUnwrap(URL(string: "arta-work://session/" + key.storageID))
+    XCTAssertEqual(url.lastPathComponent, key.storageID)
+  }
+
   func event(
     _ kind: AgentEvent.Kind, provider: String = "opencode", turn: String = "t1",
     request: String? = nil, time: Double = 10

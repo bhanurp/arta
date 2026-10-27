@@ -71,7 +71,7 @@ public enum ArtifactCatalog {
     guard info.isRegularFile == true, (info.fileSize ?? Int.max) <= 20 * 1024 * 1024 else {
       return nil
     }
-    return SHA256.hash(data: try Data(contentsOf: file, options: [.mappedIfSafe])).map {
+    return SHA256.hash(data: try Data(contentsOf: file)).map {
       String(format: "%02x", $0)
     }.joined()
   }

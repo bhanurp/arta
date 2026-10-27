@@ -12,7 +12,7 @@ public struct IntegrationManifest: Codable, Equatable {
   public var executableName: String?
   public var setupNote: String
   public static func validID(_ id: String) -> Bool {
-    !id.isEmpty && id.count <= 80
+    !id.isEmpty && id != "." && id != ".." && id.count <= 80
       && id.utf8.allSatisfy {
         (97...122).contains($0) || (48...57).contains($0) || $0 == 45 || $0 == 46
       }

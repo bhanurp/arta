@@ -25,7 +25,7 @@ final class BackgroundWorkController: NSObject, NSTextViewDelegate {
       w.appearance = NSAppearance(named: .darkAqua)
       w.title = "Arta · Background work"
       w.isReleasedWhenClosed = false
-      w.minSize = NSSize(width: 560, height: 420)
+      w.minSize = NSSize(width: 620, height: 420)
       w.center()
       let view = w.contentView!
       let scroll = NSScrollView(frame: NSRect(x: 16, y: 60, width: 588, height: 464))

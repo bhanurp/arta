@@ -55,13 +55,30 @@ public final class TrackingCoordinator {
         let previousGit = Set((store.gitRecords ?? []).map(\.id))
         let samples = discovery.batch(for: manifest.id)
         let inbox = AgentInbox(root: root, integrationID: manifest.id)
-        let events = try inbox.pending()
+        let events = try inbox.pending { result.diagnostics.append($0) }
         let observationInbox = ObservationInbox(root: root, integrationID: manifest.id)
-        let observations = try observationInbox.pending()
+        var observations: [AgentObservation] = []
+        var observationUnavailable = false
+        do {
+          observations = try observationInbox.pending()
+        } catch {
+          observationUnavailable = true
+          result.diagnostics.append(
+            "\(manifest.name) observations are retained for retry: \(error.localizedDescription)")
+        }
         for event in events { if try AgentReducer.apply(event, to: &next) { attention = true } }
         let legacyInbox = EventInbox(directory: root.appendingPathComponent("inbox"))
-        let legacyEvents = manifest.id == "claude-code" ? try legacyInbox.pendingEvents() : []
-        for event in legacyEvents { if try claude.apply(event, to: &next) { attention = true } }
+        let legacyEvents =
+          manifest.id == "claude-code"
+          ? try legacyInbox.pendingEvents { result.diagnostics.append($0) } : []
+        for event in legacyEvents {
+          do {
+            if try claude.apply(event, to: &next) { attention = true }
+          } catch IntegrationError.invalidEvent {
+            result.diagnostics.append(
+              "An invalid Claude event was skipped; healthy events continue.")
+          }
+        }
         if discover { AgentReducer.reconcileProcesses(in: &next) }
         for sample in samples ?? [] {
           if try PassiveDiscoveryReducer.apply(sample, to: &next) { attention = true }
@@ -81,6 +98,12 @@ public final class TrackingCoordinator {
           if claude.recover(store: &next) { attention = true }
         }
         var background = next.background ?? BackgroundWork()
+        if observationUnavailable {
+          for check in background.checks
+          where next.sessions[check.sessionID]?.integrationID == manifest.id {
+            background.scopes[check.workspace]?.continuous = false
+          }
+        }
         for observation in observations { try background.apply(observation) }
         for (project, scope) in scopeUpdates { background.scopes[project] = scope }
         background.unavailableSessions = Set(

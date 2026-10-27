@@ -7,6 +7,23 @@ public final class ClaudeTracking: AgentIntegration {
   private var paths: [String: URL] = [:]
   private var hooks = Set<String>()
   public init() {}
+  static func normalized(_ legacy: SessionEvent) throws -> SessionEvent {
+    var event = legacy
+    if let message = event.message, message.utf8.count > 48000 {
+      var bytes = Array(message.utf8.prefix(48000))
+      while String(bytes: bytes, encoding: .utf8) == nil { bytes.removeLast() }
+      event.message = String(bytes: bytes, encoding: .utf8)
+    }
+    guard (event.requestCorrelationID?.utf8.count ?? 0) <= 128 else {
+      throw IntegrationError.invalidEvent
+    }
+    try AgentEvent(
+      integrationID: "claude-code", sourceInstanceID: "local", sessionID: event.sessionID,
+      runID: "legacy", kind: .sessionDiscovered, occurredAt: event.time,
+      requestID: event.requestID, project: event.project, message: event.message
+    ).validate()
+    return event
+  }
   struct Checkpoint {
     var observer: TranscriptObserver
     var paths: [String: URL]
@@ -22,6 +39,7 @@ public final class ClaudeTracking: AgentIntegration {
   @discardableResult public func apply(
     _ legacy: SessionEvent, to store: inout SessionStore, fromHook: Bool = true
   ) throws -> Bool {
+    let legacy = try Self.normalized(legacy)
     guard !store.seen.contains(legacy.id) else { return false }
     let key = SessionKey(
       integrationID: manifest.id, sourceInstanceID: "local", nativeID: legacy.sessionID)
@@ -65,7 +83,7 @@ public final class ClaudeTracking: AgentIntegration {
     }
     for request in resolutions {
       var resolved = event
-      resolved.eventID += ":resolve:" + request
+      resolved.eventID = AgentObservation.digest(resolved.eventID + ":resolve:" + request)
       resolved.kind = .inputResolved
       resolved.requestID = request
       try AgentReducer.apply(resolved, to: &store)

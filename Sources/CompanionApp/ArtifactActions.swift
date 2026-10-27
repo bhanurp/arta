@@ -47,7 +47,7 @@ final class ArtifactActions {
           ].contains(url.pathExtension.lowercased())
         {
           let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? Int.max
-          if size <= 20 * 1024 * 1024 { data = try Data(contentsOf: url, options: [.mappedIfSafe]) }
+          if size <= 20 * 1024 * 1024 { data = try Data(contentsOf: url) }
         }
         var preview: PreparedArtifactPreview?
         if let data, case .file(let url) = target,

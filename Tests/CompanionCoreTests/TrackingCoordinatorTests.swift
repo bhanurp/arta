@@ -4,6 +4,103 @@ import XCTest
 @testable import CompanionCore
 
 final class TrackingCoordinatorTests: XCTestCase {
+  func testInvalidLegacyEventDoesNotBlockHealthyEventsAndUnicodeMessagesAreBounded() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let setup = IntegrationSetup(root: root, home: root, environment: [:])
+    try HookInstaller.install(settingsURL: setup.config("claude-code"), executableURL: setup.helper)
+    let coordinator = try TrackingCoordinator(root: root)
+    var store = try coordinator.load()
+    let inbox = EventInbox(directory: root.appendingPathComponent("inbox"))
+    try inbox.write(SessionEvent(sessionID: "", kind: .working, project: "/tmp/Arta"))
+    let message = String(repeating: "👩‍👩‍👧‍👦", count: 3000)
+    XCTAssertGreaterThan(message.utf8.count, 48000)
+    try inbox.write(
+      SessionEvent(sessionID: "healthy", kind: .finished, project: "/tmp/Arta", message: message))
+    let update = coordinator.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+    XCTAssertTrue(update.attention)
+    XCTAssertFalse(update.diagnostics.isEmpty)
+    let session = try XCTUnwrap(store.sessions.values.first)
+    XCTAssertEqual(session.state, .finished)
+    XCTAssertLessThanOrEqual(session.message?.utf8.count ?? Int.max, 48000)
+    XCTAssertTrue(try inbox.pendingEvents().isEmpty)
+    XCTAssertTrue(
+      try FileManager.default.contentsOfDirectory(atPath: inbox.directory.path).contains {
+        $0.hasSuffix(".invalid")
+      })
+  }
+
+  func testObservationReadFailureInvalidatesEarlierPassingEvidence() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let setup = IntegrationSetup(root: root, home: root, environment: [:])
+    try IntegrationHookInstaller.install(
+      id: "codex", settings: setup.config("codex"), helper: setup.helper)
+    let coordinator = try TrackingCoordinator(root: root)
+    var store = try coordinator.load()
+    let start = Date()
+    let event = AgentEvent(
+      integrationID: "codex", sourceInstanceID: "local", sessionID: "s", runID: "r",
+      kind: .turnStarted, occurredAt: start, turnID: "t", project: "/tmp/Arta")
+    try AgentInbox(root: root, integrationID: "codex").write(event)
+    let inbox = ObservationInbox(root: root, integrationID: "codex")
+    var observation = AgentObservation(
+      integrationID: "codex", sessionID: "s", producerEpoch: "typed-bridge", kind: .toolStarted,
+      workspace: "/tmp/Arta")
+    observation.occurredAt = start
+    observation.turnID = "t"
+    observation.invocationID = "call"
+    observation.command = "swift test"
+    observation.scope = WorkspaceScope(
+      workspace: "/tmp/Arta", digest: "scope", generation: 1, capturedAt: start, continuous: true)
+    try inbox.write(observation)
+    observation.eventID = UUID().uuidString
+    observation.kind = .toolFinished
+    observation.occurredAt = start.addingTimeInterval(1)
+    observation.scope?.capturedAt = observation.occurredAt
+    observation.exitCode = 0
+    try inbox.write(observation)
+    _ = coordinator.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+    XCTAssertEqual(
+      store.background?.verification(sessionID: event.key.storageID, turnID: "t"), .passed)
+    try FileManager.default.removeItem(at: inbox.directory)
+    try Data("blocked".utf8).write(to: inbox.directory)
+    _ = coordinator.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+    XCTAssertEqual(
+      store.background?.verification(sessionID: event.key.storageID, turnID: "t"), .stale)
+  }
+
+  func testUnreadableObservationInboxDoesNotBlockLifecycleOrInputResolution() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let setup = IntegrationSetup(root: root, home: root, environment: [:])
+    try IntegrationHookInstaller.install(
+      id: "codex", settings: setup.config("codex"), helper: setup.helper)
+    try AppPaths.privateDirectory(root.appendingPathComponent("observations-v1"))
+    try Data("blocked".utf8).write(to: root.appendingPathComponent("observations-v1/codex"))
+    let coordinator = try TrackingCoordinator(root: root)
+    var store = try coordinator.load()
+    let inbox = AgentInbox(root: root, integrationID: "codex")
+    var event = AgentEvent(
+      integrationID: "codex", sourceInstanceID: "local", sessionID: "s", runID: "r",
+      kind: .inputRequested, requestID: "permission", project: "/tmp/Arta")
+    try inbox.write(event)
+    let update = coordinator.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+    XCTAssertTrue(update.inputRequested)
+    XCTAssertFalse(update.diagnostics.isEmpty)
+    XCTAssertTrue(try inbox.pending().isEmpty)
+    XCTAssertEqual(store.sessions[event.key.storageID]?.state, .needsInput)
+    event.eventID = UUID().uuidString
+    event.kind = .inputResolved
+    event.occurredAt = event.occurredAt.addingTimeInterval(1)
+    try inbox.write(event)
+    _ = coordinator.poll(store: &store, registry: .bundled, setup: setup, discover: false)
+    XCTAssertTrue(try inbox.pending().isEmpty)
+    XCTAssertFalse(store.queue.allMessages.contains { $0.needsInput && !$0.read })
+    let restored = try coordinator.load()
+    XCTAssertFalse(restored.queue.allMessages.contains { $0.needsInput && !$0.read })
+  }
+
   func testFourthAdapterRunsThroughRealInboxDatabaseAndNotificationQueue() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

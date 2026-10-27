@@ -20,6 +20,7 @@ public enum CheckClassifier {
     guard !command.contains(where: { ";|&<>`$\n\r()".contains($0) }) else { return nil }
     guard let words = tokens(command) else { return nil }
     guard let first = words.first else { return nil }
+    guard !first.contains("/") || first.hasPrefix("/") else { return nil }
     let executable = URL(fileURLWithPath: first).lastPathComponent
     let commandWords = Array(words.dropFirst())
     let swiftValues: Set<String> = [

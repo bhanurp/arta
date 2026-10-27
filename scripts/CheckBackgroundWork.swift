@@ -25,6 +25,13 @@ import CompanionCore
     controller.show(sessionID:event.key.storageID)
     precondition(window.isVisible)
     precondition(buttons.contains { $0.title == "Choose result…" && !$0.isHidden })
+    var minimum = window.frame
+    minimum.size = window.minSize
+    window.setFrame(minimum, display: true)
+    let visible = buttons.filter { !$0.isHidden }
+    for (index, button) in visible.enumerated() {
+      precondition(visible.dropFirst(index + 1).allSatisfy { !$0.frame.intersects(button.frame) }, "Minimum window size must not overlap result controls")
+    }
     window.performClose(nil)
     print("Briefing review cursor, missing-verification details, result actions, and close controls passed.")
   }

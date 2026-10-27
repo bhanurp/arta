@@ -110,7 +110,7 @@ public final class AgentDatabase {
     for file in existing.dropFirst(2) { try? FileManager.default.removeItem(at: file) }
   }
   public func save(_ store: SessionStore) throws {
-    if let (version, _) = try stored(), ![1, 2].contains(version) {
+    if let version = try storedVersion(), ![1, 2].contains(version) {
       throw IntegrationError.unsupportedVersion
     }
     let encoder = JSONEncoder()
@@ -141,5 +141,19 @@ public final class AgentDatabase {
       try? execute("ROLLBACK")
       throw error
     }
+  }
+  private func storedVersion() throws -> Int32? {
+    var statement: OpaquePointer?
+    guard
+      sqlite3_prepare_v2(connection, "SELECT version FROM state WHERE id=1", -1, &statement, nil)
+        == SQLITE_OK
+    else {
+      throw IntegrationError.invalidEvent
+    }
+    defer { sqlite3_finalize(statement) }
+    let result = sqlite3_step(statement)
+    if result == SQLITE_DONE { return nil }
+    guard result == SQLITE_ROW else { throw IntegrationError.invalidEvent }
+    return sqlite3_column_int(statement, 0)
   }
 }

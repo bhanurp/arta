@@ -9,9 +9,16 @@ public struct AgentLifecycle: Codable {
   var requests: [String: String] = [:]
   var discoveredRequests: Set<String>?
   var resolvedRequests: Set<String> = []
+  var resolvedOrder: [String]?
   var seen: [String] = []
   var completedTurns: [String] = []
   public var currentTurnID: String? { turnID }
+  mutating func rememberResolution(_ request: String) {
+    var order = resolvedOrder ?? resolvedRequests.sorted()
+    if resolvedRequests.insert(request).inserted { order.append(request) }
+    resolvedOrder = Array(order.suffix(1024))
+    resolvedRequests = Set(resolvedOrder ?? [])
+  }
 }
 public struct AgentGitRecord: Codable, Identifiable {
   public var id: String
@@ -33,15 +40,20 @@ public enum AgentReducer {
     var lifecycle = store.agentLifecycles?[id] ?? AgentLifecycle(runID: event.runID)
     guard !lifecycle.seen.contains(event.eventID) else { return false }
     let changedRun = lifecycle.runID != event.runID
+    let adoptingDiscovery = changedRun && lifecycle.runID == "discovery"
     if changedRun {
-      guard [.sessionDiscovered, .turnStarted].contains(event.kind),
-        event.occurredAt >= lifecycle.updated
+      guard adoptingDiscovery || [.sessionDiscovered, .turnStarted].contains(event.kind),
+        event.occurredAt >= lifecycle.updated || event.kind == .inputResolved
       else { return false }
       // Keep unresolved requests visible across reconnection/restarts until explicit resolution.
       lifecycle.runID = event.runID
       lifecycle.sequence = nil
-      lifecycle.turnID = nil
-      lifecycle.state = .unknown
+      if adoptingDiscovery {
+        if event.kind != .inputResolved { lifecycle.turnID = event.turnID ?? lifecycle.turnID }
+      } else {
+        lifecycle.turnID = nil
+        lifecycle.state = .unknown
+      }
     }
     if let sequence = event.sourceSequence, let last = lifecycle.sequence, sequence <= last,
       event.kind != .inputResolved
@@ -66,7 +78,8 @@ public enum AgentReducer {
     }
     let old = store.sessions[id]
     let sameProcess =
-      !changedRun && (event.pid == nil || old?.pid == nil || event.pid == old?.pid)
+      (!changedRun || adoptingDiscovery)
+      && (event.pid == nil || old?.pid == nil || event.pid == old?.pid)
       && (event.processStart == nil || old?.processStart == nil
         || event.processStart == old?.processStart)
     var attention = false
@@ -113,7 +126,7 @@ public enum AgentReducer {
     case .inputResolved:
       let request = event.requestID!
       lifecycle.requests.removeValue(forKey: request)
-      lifecycle.resolvedRequests.insert(request)
+      lifecycle.rememberResolution(request)
       let matching = store.queue.allMessages.filter {
         $0.sessionID == id && $0.needsInput
           && ($0.requestID == request || ($0.requestID == nil && request == "legacy-input"))

@@ -597,9 +597,12 @@ final class PetPanel: NSObject {
     bell.briefingAvailable = briefing != nil
     bell.toolTip = "\(unread) unread notifications — click to \(trayExpanded ? "hide":"show")"
     let key =
-      notices.map {
-        $0.id.uuidString + $0.message + ($0.verification?.rawValue ?? "")
-          + ($0.results ?? []).map { $0.id + $0.title }.joined()
+      notices.map { notice in
+        let results = (notice.results ?? []).map {
+          [$0.id, $0.title, $0.kind.rawValue, $0.location].joined(separator: "\u{0}")
+        }.joined(separator: "\u{1}")
+        return [notice.id.uuidString, notice.message, notice.verification?.rawValue ?? "", results]
+          .joined(separator: "\u{2}")
       }.joined() + "-\(total)-\(stackCollapsed)-\(briefing ?? "")-\(visibleLimit)"
     guard key != signature else { return }
     signature = key
