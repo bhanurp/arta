@@ -404,6 +404,7 @@ final class PetPanel: NSObject {
   var onCodexSetupAction: ((String) -> Void)?
   var onDismiss: ((UUID) -> Void)?
   var onToggle: (() -> Void)?
+  var onGit: (() -> Void)?
   var onSessions: (() -> Void)?
   var onNewChat: (() -> Void)?
   var trayExpanded = false { didSet { updateActivityIndicator() } }
@@ -565,14 +566,8 @@ final class PetPanel: NSObject {
       working: hasWorkingSession, pending: pendingCount, briefing: lastBriefing,
       visibleLimit: lastVisibleLimit)
   }
-  @objc func showCommitsToday() {
-    let alert = NSAlert()
-    alert.messageText = "\(commitsToday) commits today"
-    alert.informativeText =
-      "Successful commits observed in tracked Claude Code sessions today. Resets at midnight in your local time zone. Commits made before tracking was enabled are not included."
-    NSApp.activate(ignoringOtherApps: true)
-    alert.runModal()
-  }
+  /// Opens commit history through the app-owned Git action.
+  @objc func showCommitsToday() { onGit?() }
   func render(
     _ notices: [Notice], state: Int, unread: Int, commits: Int = 0, working: Bool = false,
     pending: Int = 0, briefing: String? = nil, visibleLimit: Int = 2
